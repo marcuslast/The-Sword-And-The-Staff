@@ -631,20 +631,31 @@ export const QuizBoardGameMobile: React.FC = () => {
         const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
         if (!currentPlayer) return;
 
-        const totalStats = calculateTotalStats(currentPlayer);
-        const playerPower = totalStats.attack + Math.floor(totalStats.defense * 0.5);
+        // Create a proper BattleState
+        const battleState = {
+            enemy: { ...enemy },
+            playerHealth: currentPlayer.health,
+            playerMaxHealth: currentPlayer.maxHealth,
+            enemyHealth: enemy.health,
+            enemyMaxHealth: enemy.health,
+            // @ts-ignore
+            rounds: [],
+            currentRound: 0,
+            isPlayerTurn: true,
+            phase: 'player_attack' as const,
+            playerStats: calculateTotalStats(currentPlayer)
+        };
 
         setGameState(prev => ({
             ...prev,
             phase: 'battle',
-            currentBattle: {
-                enemy: { ...enemy },
-                playerDamage: playerPower
-            }
+            currentBattle: battleState
         }));
         setBottomSheetContent('battle');
         setShowBottomSheet(true);
     };
+
+
 
     const resolveBattle = () => {
         if (!gameState.currentBattle) return;
@@ -652,10 +663,15 @@ export const QuizBoardGameMobile: React.FC = () => {
         const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
         if (!currentPlayer) return;
 
-        const { enemy, playerDamage } = gameState.currentBattle;
+        const battle = gameState.currentBattle;
+        const totalStats = calculateTotalStats(currentPlayer);
+        const playerPower = totalStats.attack + Math.floor(totalStats.defense * 0.5);
 
-        if (playerDamage >= enemy.health) {
-            giveItemToPlayer(enemy.reward);
+        // Simple battle resolution
+        const playerWins = playerPower >= battle.enemy.health;
+
+        if (playerWins) {
+            giveItemToPlayer(battle.enemy.reward);
             setGameState(prev => ({
                 ...prev,
                 players: prev.players.map(p =>
@@ -665,7 +681,7 @@ export const QuizBoardGameMobile: React.FC = () => {
                 )
             }));
         } else {
-            const damage = enemy.power;
+            const damage = battle.enemy.power;
             setGameState(prev => ({
                 ...prev,
                 players: prev.players.map(p =>
@@ -1361,7 +1377,12 @@ export const QuizBoardGameMobile: React.FC = () => {
 
                             <div className="bg-gradient-to-r from-purple-100 to-indigo-100 p-4 rounded-2xl">
                                 <p className="text-sm text-gray-600">Your Combat Power</p>
-                                <p className="text-3xl font-bold text-purple-800">{gameState.currentBattle.playerDamage}</p>
+                                <p className="text-3xl font-bold text-purple-800">
+                                    {gameState.currentBattle ?
+                                        calculateTotalStats(gameState.players.find(p => p.id === gameState.currentPlayerId)!).attack +
+                                        Math.floor(calculateTotalStats(gameState.players.find(p => p.id === gameState.currentPlayerId)!).defense * 0.5)
+                                        : 0}
+                                </p>
                             </div>
 
                             {isPlayerTurn && (

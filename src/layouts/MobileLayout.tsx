@@ -8,6 +8,7 @@ import {
     Heart, Trophy, Target, Dices, User, Zap
 } from 'lucide-react';
 import { Item } from '../types/game.types';
+import MobileBattleScreen from '../components/MobileBattleScreen';
 
 interface MobileLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -36,7 +37,7 @@ const RARITIES = {
 };
 
 const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
-    const { gameState, gameMode } = props;
+    const { gameState, gameMode, battleLogic } = props;
     const [activeTab, setActiveTab] = useState<'game' | 'inventory' | 'stats'>('game');
 
     const handleRewardClose = () => {
@@ -195,33 +196,28 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
 
             {/* Battle Section */}
             {gameState.phase === 'battle' && gameState.currentBattle && (
-                <div className="bg-white rounded-lg p-4 shadow-lg">
-                    <div className="text-center">
-                        <h3 className="font-bold text-red-600 mb-3">⚔️ Battle!</h3>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="bg-blue-50 p-3 rounded-lg">
-                                <div className="font-bold text-blue-600 text-sm">{currentPlayer?.username}</div>
-                                <div className="text-xs text-gray-600">
-                                    HP: {currentPlayer?.health}/{currentPlayer?.maxHealth}
-                                </div>
-                            </div>
-                            <div className="bg-red-50 p-3 rounded-lg">
-                                <div className="font-bold text-red-600 text-sm">{gameState.currentBattle.enemy.name}</div>
-                                <div className="text-xs text-gray-600">
-                                    Power: {gameState.currentBattle.enemy.power}
-                                </div>
-                            </div>
-                        </div>
-                        {currentPlayer?.id === '1' && (
-                            <button
-                                onClick={props.resolveBattle}
-                                className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg"
-                            >
-                                Fight!
-                            </button>
-                        )}
-                    </div>
-                </div>
+                <MobileBattleScreen
+                    battleState={gameState.currentBattle}
+                    onAttack={() => {
+                        if (gameState.currentBattle) {
+                            const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
+                            props.updateBattleState(newBattleState);
+                        }
+                    }}
+                    onDefend={() => {
+                        if (gameState.currentBattle) {
+                            const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
+                            props.updateBattleState(newBattleState);
+                        }
+                    }}
+                    onContinue={() => {
+                        if (gameState.currentBattle) {
+                            const result = battleLogic.resolveBattle(gameState.currentBattle);
+                            props.completeBattle(result.playerWon, gameState.currentBattle);
+                        }
+                    }}
+                    isPlayerTurn={currentPlayer?.id === '1'}
+                />
             )}
 
             {/* End Turn Button */}

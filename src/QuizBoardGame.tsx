@@ -11,7 +11,7 @@ import {
     Enemy,
     Tile,
     Player,
-    GameState
+    GameState, BattleState
 } from "./types/game.types";
 import Dice from './components/Dice'
 import {createGameBoard, generateRandomItem, getAvailableTiles, getOrderedPathTiles} from './utils/gameLogic';
@@ -889,17 +889,28 @@ const QuizBoardGame: React.FC = () => {
         if (!currentPlayer) return;
 
         const totalStats = calculateTotalStats(currentPlayer);
-        const playerPower = totalStats.attack + Math.floor(totalStats.defense * 0.5); // Combat power calculation
+
+        // Create proper BattleState matching the interface
+        const battleState: BattleState = {
+            enemy: { ...enemy },
+            playerHealth: currentPlayer.health,
+            playerMaxHealth: currentPlayer.maxHealth,
+            enemyHealth: enemy.health,
+            enemyMaxHealth: enemy.health,
+            rounds: [],
+            currentRound: 0,
+            isPlayerTurn: true,
+            phase: 'player_attack',
+            playerStats: totalStats
+        };
 
         setGameState(prev => ({
             ...prev,
             phase: 'battle',
-            currentBattle: {
-                enemy: { ...enemy },
-                playerDamage: playerPower
-            }
+            currentBattle: battleState
         }));
     };
+
 
     const resolveBattle = () => {
         if (!gameState.currentBattle) return;
@@ -907,36 +918,49 @@ const QuizBoardGame: React.FC = () => {
         const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
         if (!currentPlayer) return;
 
-        const { enemy, playerDamage } = gameState.currentBattle;
+        const { enemy } = gameState.currentBattle; // Remove playerDamage from destructuring
 
-        if (playerDamage >= enemy.health) {
+        // Calculate player's combat power
+        const playerCombatPower = gameState.currentBattle.playerStats.attack +
+            Math.floor(gameState.currentBattle.playerStats.defense * 0.5);
+
+        if (playerCombatPower >= enemy.health) {
             // Player wins
             giveItemToPlayer(enemy.reward);
+
             setGameState(prev => ({
                 ...prev,
                 players: prev.players.map(p =>
                     p.id === currentPlayer.id
-                        ? { ...p, stats: { ...p.stats, battlesWon: p.stats.battlesWon + 1 } }
+                        ? {
+                            ...p,
+                            stats: {
+                                ...p.stats,
+                                battlesWon: p.stats.battlesWon + 1
+                            }
+                        }
                         : p
-                )
+                ),
+                phase: 'reward',
+                currentBattle: null
             }));
         } else {
-            // Player loses
+            // Player loses - take damage
             const damage = enemy.power;
+
             setGameState(prev => ({
                 ...prev,
                 players: prev.players.map(p =>
                     p.id === currentPlayer.id
                         ? { ...p, health: Math.max(0, p.health - damage) }
                         : p
-                )
+                ),
+                phase: 'rolling',
+                currentBattle: null
             }));
-        }
 
-        setTimeout(() => {
-            setGameState(prev => ({ ...prev, currentBattle: null }));
-            endTurn();
-        }, 2000);
+            setCanEndTurn(true);
+        }
     };
 
     const handleTileSelection = (selectedPosition: number) => {
@@ -1448,7 +1472,11 @@ const QuizBoardGame: React.FC = () => {
 
                                 <div className="bg-gray-100 p-4 rounded-lg mb-6">
                                     <p className="text-center">
-                                        Your Power: <span className="font-bold text-lg">{gameState.currentBattle.playerDamage}</span>
+                                        Your Power: <span className="font-bold text-lg">
+                                            {gameState.currentBattle ?
+                                                gameState.currentBattle.playerStats.attack + Math.floor(gameState.currentBattle.playerStats.defense * 0.5)
+                                                    : 0}
+                                            </span>
                                     </p>
                                 </div>
 

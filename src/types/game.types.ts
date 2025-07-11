@@ -50,7 +50,7 @@ export interface GameState {
     phase: 'rolling' | 'moving' | 'question' | 'battle' | 'trap' | 'reward' | 'game_over' | 'selecting_tile';
     diceValue: number | null;
     currentQuestion: Question | null;
-    currentBattle: { enemy: Enemy; playerDamage: number } | null;
+    currentBattle: BattleState | null;
     activeTrap: Trap | null;
     winner: Player | null;
 }
@@ -72,6 +72,37 @@ export interface PlayerStats {
     health: number;
     speed: number;
 }
+
+export interface DiceRoll {
+    type: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20';
+    value: number;
+    modifier: number;
+    total: number;
+    isCritical?: boolean;
+    isCriticalFail?: boolean;
+}
+
+export interface BattleRound {
+    playerRoll: DiceRoll;
+    enemyRoll: DiceRoll;
+    damage?: number;
+    isPlayerTurn: boolean;
+    description: string;
+}
+
+export interface BattleState {
+    enemy: Enemy;
+    playerHealth: number;
+    playerMaxHealth: number;
+    enemyHealth: number;
+    enemyMaxHealth: number;
+    rounds: BattleRound[];
+    currentRound: number;
+    isPlayerTurn: boolean;
+    phase: 'initiative' | 'player_attack' | 'enemy_attack' | 'victory' | 'defeat';
+    playerStats: PlayerStats;
+}
+
 
 export interface Player {
     id: string;

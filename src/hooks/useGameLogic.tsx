@@ -10,6 +10,8 @@ import {
 import { createGameBoard, getAvailableTiles, getOrderedPathTiles, generateRandomItem } from '../utils/gameLogic';
 import { PLAYER_COLORS, generateRandomQuestion } from '../utils/gameData';
 import { getItemSlot, calculateTotalStats } from '../utils/equipmentLogic';
+import { BattleState } from '../types/game.types';
+import { useBattleLogic } from './useBattleLogic';
 
 export const useGameLogic = () => {
     const [gameMode, setGameMode] = useState<'menu' | 'setup' | 'playing'>('menu');
@@ -33,6 +35,56 @@ export const useGameLogic = () => {
     const [isSelectingTile, setIsSelectingTile] = useState(false);
     const [currentReward, setCurrentReward] = useState<Item | null>(null);
     const [canEndTurn, setCanEndTurn] = useState(false);
+
+    const battleLogic = useBattleLogic();
+
+    const updateBattleState = (newBattleState: BattleState) => {
+        setGameState(prev => ({
+            ...prev,
+            currentBattle: newBattleState
+        }));
+    };
+
+    const completeBattle = (playerWon: boolean, battleState: BattleState) => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer) return;
+
+        if (playerWon) {
+            // Player wins - gets reward
+            const reward = battleState.enemy.reward;
+            setGameState(prev => ({
+                ...prev,
+                players: prev.players.map(p =>
+                    p.id === currentPlayer.id
+                        ? {
+                            ...p,
+                            inventory: [...p.inventory, reward],
+                            stats: {
+                                ...p.stats,
+                                battlesWon: p.stats.battlesWon + 1
+                            }
+                        }
+                        : p
+                ),
+                phase: 'reward',
+                currentBattle: null
+            }));
+            setCurrentReward(reward);
+        } else {
+            // Player loses - takes damage
+            setGameState(prev => ({
+                ...prev,
+                players: prev.players.map(p =>
+                    p.id === currentPlayer.id
+                        ? { ...p, health: Math.max(0, battleState.playerHealth) }
+                        : p
+                ),
+                phase: 'rolling',
+                currentBattle: null
+            }));
+            setCanEndTurn(true);
+        }
+    };
 
     // AI Logic Effect
     useEffect(() => {
@@ -109,7 +161,23 @@ export const useGameLogic = () => {
                     break;
 
                 case 'battle':
-                    setTimeout(() => resolveBattle(), 2000);
+                    if (gameState.currentBattle) {
+                        // AI automatically attacks
+                        setTimeout(() => {
+                            if (gameState.currentBattle?.phase === 'player_attack') {
+                                const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
+                                updateBattleState(newBattleState);
+
+                                // Check if battle is over
+                                if (newBattleState.phase === 'victory' || newBattleState.phase === 'defeat') {
+                                    setTimeout(() => {
+                                        const result = battleLogic.resolveBattle(newBattleState);
+                                        completeBattle(result.playerWon, newBattleState);
+                                    }, 2000);
+                                }
+                            }
+                        }, 2000);
+                    }
                     break;
 
                 case 'reward':
@@ -314,16 +382,11 @@ export const useGameLogic = () => {
         switch (tile.type) {
             case 'battle':
                 if (tile.enemy) {
-                    const totalStats = calculateTotalStats(player);
-                    const playerDamage = totalStats.attack + Math.floor(totalStats.defense * 0.5); // Combat power calculation
-
+                    const battleState = battleLogic.initiateBattle(tile.enemy, player);
                     setGameState(prev => ({
                         ...prev,
                         phase: 'battle',
-                        currentBattle: {
-                            enemy: tile.enemy!,
-                            playerDamage: playerDamage  // Use calculated damage instead of 0
-                        }
+                        currentBattle: battleState
                     }));
                 }
                 break;
@@ -593,6 +656,11 @@ export const useGameLogic = () => {
         endTurn,
         resolveBattle,
         handleEquipItem,
-        handleUnequipItem
+        handleUnequipItem,
+
+        // Battle functions
+        updateBattleState,
+        completeBattle,
+        battleLogic
     };
 };
