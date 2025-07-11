@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add safe area padding for mobile devices */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Smooth transitions for mobile */
+.transition-height {
+    transition-property: height;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+/* Custom shadow utilities */
+.shadow-3xl {
+    box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+}
+
+/* Glassmorphism effects */
+.glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Prevent scroll bounce on iOS */
+.no-bounce {
+    overscroll-behavior: none;
+}
+
+/* Swipeable card animations */
+@keyframes swipe-hint {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-10px); }
+}
+
+.swipe-hint {
+    animation: swipe-hint 2s ease-in-out infinite;
+}
+
+/* Touch feedback */
+.touch-feedback {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}

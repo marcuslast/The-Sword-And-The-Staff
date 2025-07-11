@@ -1,0 +1,95 @@
+export interface Question {
+    id: string;
+    category: string;
+    question: string;
+    options: string[];
+    correctAnswer: number;
+    difficulty: number;
+}
+
+export interface Item {
+    id: string;
+    name: string;
+    type: 'weapon' | 'armor' | 'trap' | 'consumable' | 'potion' | 'mythic';
+    rarity: 'common' | 'uncommon' | 'rare' | 'very rare' | 'legendary';
+    stats: number;
+    icon: string;
+    effect?: string;
+}
+
+export interface Trap {
+    id: string;
+    type: 'creature' | 'damage' | 'item_loss';
+    power: number;
+    ownerId: string;
+    ownerName: string;
+}
+
+export interface Enemy {
+    id: string;
+    name: string;
+    health: number;
+    power: number;
+    reward: Item;
+}
+
+export interface Tile {
+    id: number;
+    type: 'normal' | 'battle' | 'trap' | 'bonus' | 'castle' | 'start';
+    x: number;
+    y: number;
+    enemy?: Enemy;
+    trap?: Trap;
+    isPath: boolean;
+}
+
+export interface GameState {
+    players: Player[];
+    currentPlayerId: string;
+    board: Tile[];
+    phase: 'rolling' | 'moving' | 'question' | 'battle' | 'trap' | 'reward' | 'game_over' | 'selecting_tile';
+    diceValue: number | null;
+    currentQuestion: Question | null;
+    currentBattle: { enemy: Enemy; playerDamage: number } | null;
+    activeTrap: Trap | null;
+    winner: Player | null;
+}
+
+export interface EquipmentSlots {
+    weapon?: Item;
+    armor?: Item;
+    helmet?: Item;
+    shield?: Item;
+    gloves?: Item;
+    boots?: Item;
+    cloak?: Item;
+    accessory?: Item;
+}
+
+export interface PlayerStats {
+    attack: number;
+    defense: number;
+    health: number;
+    speed: number;
+}
+
+export interface Player {
+    id: string;
+    username: string;
+    position: number;
+    health: number;
+    maxHealth: number;
+    inventory: Item[];
+    equipped: EquipmentSlots; // Add this
+    baseStats: PlayerStats; // Add this
+    stats: {
+        questionsAnswered: number;
+        correctAnswers: number;
+        battlesWon: number;
+        tilesMovedTotal: number;
+    };
+    color: string;
+    isActive: boolean;
+}
+
+export type ItemSlot = 'weapon' | 'armor' | 'helmet' | 'shield' | 'gloves' | 'boots' | 'cloak' | 'accessory';
