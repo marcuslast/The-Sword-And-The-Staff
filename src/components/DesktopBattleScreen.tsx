@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
-import { BattleState, DiceRoll } from '../types/game.types';
+import {BattleState, DiceRoll, Player} from '../types/game.types';
 import { getDiceIcon } from '../utils/diceUtils';
 
 interface DesktopBattleScreenProps {
@@ -9,6 +9,7 @@ interface DesktopBattleScreenProps {
     onDefend: () => void;
     onContinue: () => void;
     isPlayerTurn: boolean;
+    currentPlayer: Player;
 }
 
 // Animated Dice Component
@@ -102,7 +103,8 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                                                                      onAttack,
                                                                      onDefend,
                                                                      onContinue,
-                                                                     isPlayerTurn
+                                                                     isPlayerTurn,
+                                                                     currentPlayer
                                                                  }) => {
     const [rolling, setRolling] = useState(false);
     const [showEffects, setShowEffects] = useState(false);
@@ -143,8 +145,14 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                     <>
                         <Skull size={80} className="text-red-600 mx-auto mb-4 animate-pulse" />
                         <h2 className="text-4xl font-bold text-red-600 mb-4">DEFEATED!</h2>
-                        <p className="text-xl text-gray-700 mb-6">You were defeated by {battleState.enemy.name}!</p>
-                    </>
+                        <p className="text-xl text-gray-700 mb-6">
+                            You were defeated by {battleState.enemy.name} and sent back to the start!
+                        </p>
+                        <div className="bg-red-100 rounded-lg p-4 mb-6">
+                            <p className="text-lg text-red-800">
+                                All your items have been lost!
+                            </p>
+                        </div>                  </>
                 )}
                 <button
                     onClick={onContinue}
@@ -168,7 +176,9 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                             <Shield size={40} className="text-white" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-bold text-blue-800">You</h3>
+                            <h3 className="text-2xl font-bold text-blue-800">
+                                {currentPlayer.username} {currentPlayer.id !== '1' ? '(AI)' : ''}
+                            </h3>
                             <div className="flex space-x-4 text-sm text-gray-600 mt-1">
                                 <span className="flex items-center">
                                     <Sword size={16} className="mr-1" />

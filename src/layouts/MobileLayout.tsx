@@ -134,7 +134,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
             {/* Current Player Info */}
             <div className="bg-white rounded-lg p-4 shadow-lg">
                 <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-gray-800">Current Turn</h3>
+                    <h3 className="font-bold text-gray-800">{currentPlayer?.username.toUpperCase()} - Turn</h3>
                     <div className="text-sm text-gray-600">Phase: {gameState.phase}</div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -192,6 +192,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                         }
                     }}
                     isPlayerTurn={currentPlayer?.id === '1'}
+                    currentPlayer={currentPlayer}
                 />
             )}
 

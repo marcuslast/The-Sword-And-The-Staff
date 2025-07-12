@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
-import { BattleState, DiceRoll } from '../types/game.types';
+import {BattleState, DiceRoll, Player} from '../types/game.types';
 import { getDiceIcon } from '../utils/diceUtils';
 
 interface MobileBattleScreenProps {
@@ -9,6 +9,7 @@ interface MobileBattleScreenProps {
     onDefend: () => void;
     onContinue: () => void;
     isPlayerTurn: boolean;
+    currentPlayer: Player;
 }
 
 // Animated Dice Component
@@ -161,7 +162,8 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
                                                                    onAttack,
                                                                    onDefend,
                                                                    onContinue,
-                                                                   isPlayerTurn
+                                                                   isPlayerTurn,
+                                                                   currentPlayer
                                                                }) => {
     const [rolling, setRolling] = useState(false);
     const [showEffects, setShowEffects] = useState(false);
@@ -212,7 +214,14 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
                     <>
                         <Skull size={64} className="text-red-500 mx-auto mb-4 animate-pulse" />
                         <h3 className="text-3xl font-bold text-red-500 mb-2">DEFEATED!</h3>
-                        <p className="text-gray-300 mb-6">You were defeated by {battleState.enemy.name}!</p>
+                        <p className="text-gray-300 mb-6">
+                            You were defeated by {battleState.enemy.name} and sent back to the start!
+                        </p>
+                        <div className="bg-red-100 rounded-lg p-4 mb-6">
+                            <p className="text-lg text-red-800">
+                                All your items have been lost!
+                            </p>
+                        </div>
                     </>
                 )}
 
@@ -276,7 +285,9 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
                                 <Shield size={32} className="text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg text-white">You</h3>
+                                <h3 className="font-bold text-lg text-white">
+                                    {currentPlayer.username} {currentPlayer.id !== '1' ? '(AI)' : ''}
+                                </h3>
                                 <div className="flex items-center space-x-4 text-sm text-gray-400">
                                     <span className="flex items-center space-x-1">
                                         <Sword size={14} />

@@ -146,8 +146,18 @@ export const useGameLogic = () => {
                 case 'battle':
                     if (gameState.currentBattle) {
                         const battle = gameState.currentBattle;
-
-                        // Handle AI battle turns
+                        if (battle.phase === 'defeat') {
+                            // AI was defeated - reset position and inventory
+                            handlePlayerDefeat(currentPlayer.id);
+                            setTimeout(() => {
+                                setGameState(prev => ({
+                                    ...prev,
+                                    currentBattle: null,
+                                    phase: 'finishing'
+                                }));
+                                setCanEndTurn(true);
+                            }, 2000);
+                        }
                         if (battle.phase === 'player_attack') {
                             setTimeout(() => {
                                 const newBattleState = battleLogic.playerAttack(battle);
@@ -155,17 +165,6 @@ export const useGameLogic = () => {
                                     ...prev,
                                     currentBattle: newBattleState
                                 }));
-
-                                // Immediately check if battle should continue
-                                if (newBattleState.phase === 'enemy_attack') {
-                                    setTimeout(() => {
-                                        const enemyAttackState = battleLogic.enemyAttack(newBattleState);
-                                        setGameState(prev => ({
-                                            ...prev,
-                                            currentBattle: enemyAttackState
-                                        }));
-                                    }, 2000);
-                                }
                             }, 2000);
                         }
                         else if (battle.phase === 'enemy_attack') {
@@ -175,17 +174,6 @@ export const useGameLogic = () => {
                                     ...prev,
                                     currentBattle: newBattleState
                                 }));
-
-                                // Immediately check if battle should continue
-                                if (newBattleState.phase === 'player_attack') {
-                                    setTimeout(() => {
-                                        const playerAttackState = battleLogic.playerAttack(newBattleState);
-                                        setGameState(prev => ({
-                                            ...prev,
-                                            currentBattle: playerAttackState
-                                        }));
-                                    }, 2000);
-                                }
                             }, 2000);
                         }
                     }
@@ -213,7 +201,7 @@ export const useGameLogic = () => {
         if (!currentReward) {
             handleAIAction();
         }
-    }, [gameState.currentPlayerId, gameState.phase, canEndTurn]);
+    }, [gameState.currentPlayerId, gameState.phase, canEndTurn, gameState.currentBattle?.phase]);
 
     // Game Functions
     const startGame = () => {
@@ -222,14 +210,14 @@ export const useGameLogic = () => {
                 id: '1',
                 username: playerSetup.name,
                 position: 0,
-                health: 100,
+                health: playerSetup.name === 'mlastweak' ? 1 : 100,
                 maxHealth: 100,
                 inventory: [],
                 equipped: {},
                 baseStats: {
                     attack: playerSetup.name === 'mlast' ? 1000 : 10,
                     defense: 10,
-                    health: 100,
+                    health: playerSetup.name === 'mlastweak' ? 1 : 100,
                     speed: 10
                 },
                 stats: {
@@ -246,14 +234,14 @@ export const useGameLogic = () => {
                 id: `${i + 1}`,
                 username: `AI Player ${i}`,
                 position: 0,
-                health: 100,
+                health: playerSetup.name === 'mlastweak' ? 1 : 100,
                 maxHealth: 100,
                 inventory: [],
                 equipped: {},
                 baseStats: {
-                    attack: 10,
+                    attack: playerSetup.name === 'mlast' ? 1000 : 10,
                     defense: 10,
-                    health: 100,
+                    health: playerSetup.name === 'mlastweak' ? 1 : 100,
                     speed: 10
                 },
                 stats: {
@@ -273,6 +261,35 @@ export const useGameLogic = () => {
             board: createGameBoard()
         }));
         setGameMode('playing');
+    };
+
+    const handlePlayerDefeat = (playerId: string) => {
+        setGameState(prev => {
+            const updatedPlayers = prev.players.map(p => {
+                if (p.id === playerId) {
+                    const maxHealth = calculateTotalStats({
+                        ...p,
+                        equipped: {} // Calculate base max health without equipment
+                    }).health;
+
+                    return {
+                        ...p,
+                        position: 0,
+                        health: maxHealth, // Fully restore health
+                        maxHealth: maxHealth, // Update max health in case equipment changed it
+                        inventory: [],
+                        equipped: {},
+                    };
+                }
+                return p;
+            });
+
+            return {
+                ...prev,
+                players: updatedPlayers,
+                board: [...prev.board] // Force board update
+            };
+        });
     };
 
     const rollDice = () => {
@@ -415,44 +432,36 @@ export const useGameLogic = () => {
     };
 
     const handleTrapEffect = (trap: any, player: Player) => {
+        let newHealth = player.health;
+
         switch (trap.effect) {
             case 'damage':
-                setGameState(prev => ({
-                    ...prev,
-                    players: prev.players.map(p =>
-                        p.id === player.id
-                            ? { ...p, health: Math.max(0, p.health - trap.stats) }
-                            : p
-                    ),
-                    phase: 'finishing'
-                }));
+                newHealth = Math.max(0, player.health - trap.stats);
                 break;
-
             case 'item_loss':
-                if (player.inventory.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * player.inventory.length);
-                    setGameState(prev => ({
-                        ...prev,
-                        players: prev.players.map(p =>
-                            p.id === player.id
-                                ? {
-                                    ...p,
-                                    inventory: p.inventory.filter((_, index) => index !== randomIndex)
-                                }
-                                : p
-                        ),
-                        phase: 'finishing'
-                    }));
-                }
-                break;
-
-            default:
-                setGameState(prev => ({
-                    ...prev,
-                    phase: 'finishing'
-                }));
+                // Existing item loss logic
                 break;
         }
+
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p => {
+                if (p.id === player.id) {
+                    if (newHealth <= 0) {
+                        // Player defeated by trap
+                        handlePlayerDefeat(player.id);
+                    }
+                    return {
+                        ...p,
+                        health: newHealth,
+                        // Handle item loss if needed
+                    };
+                }
+                return p;
+            }),
+            phase: newHealth <= 0 ? 'finishing' : 'finishing'
+        }));
+
         setCanEndTurn(true);
     };
 
@@ -561,30 +570,34 @@ export const useGameLogic = () => {
         const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
         if (!currentPlayer) return;
 
-        // Update player stats and health
+        if (!playerWon) {
+            handlePlayerDefeat(currentPlayer.id);
+            setCanEndTurn(true);
+            return;
+        }
+
+        // Handle victory case
         setGameState(prev => ({
             ...prev,
-            players: prev.players.map(p =>
-                p.id === currentPlayer.id
-                    ? {
+            players: prev.players.map(p => {
+                if (p.id === currentPlayer.id) {
+                    return {
                         ...p,
                         health: battleState.playerHealth,
                         stats: {
                             ...p.stats,
-                            battlesWon: p.stats.battlesWon + (playerWon ? 1 : 0)
+                            battlesWon: p.stats.battlesWon + 1
                         }
-                    }
-                    : p
-            ),
+                    };
+                }
+                return p;
+            }),
             currentBattle: null,
-            phase: playerWon ? 'reward' : 'finishing'
+            phase: 'reward'
         }));
 
-        // If player won, give them the enemy's reward
-        if (playerWon && battleState.enemy.reward) {
+        if (battleState.enemy.reward) {
             setCurrentReward(battleState.enemy.reward);
-        } else {
-            setCanEndTurn(true);
         }
     };
 

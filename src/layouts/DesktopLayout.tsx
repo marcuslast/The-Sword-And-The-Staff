@@ -185,6 +185,7 @@ const BattleComponent: React.FC<{
     gameState: any;
     battleLogic: any;
     updateBattleState: any;
+    currentPlayer: any;
 }> = ({ gameState, battleLogic, updateBattleState }) => {
     if (!gameState.currentBattle || gameState.phase !== 'battle') return null;
 
@@ -199,7 +200,9 @@ const BattleComponent: React.FC<{
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="font-bold text-blue-600 mb-2">{currentPlayer?.username}</h4>
+                        <h4 className="font-bold text-blue-600 mb-2">
+                            {currentPlayer.username} {currentPlayer.id !== '1' ? '(AI)' : ''}
+                        </h4>
                         <div className="space-y-1 text-sm">
                             <div>Health: {gameState.currentBattle.playerHealth}/{gameState.currentBattle.playerMaxHealth}</div>
                             <div>Attack: {gameState.currentBattle.playerStats.attack}</div>
@@ -383,6 +386,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                                 gameState={gameState}
                                 battleLogic={props.battleLogic}
                                 updateBattleState={props.updateBattleState}
+                                currentPlayer={currentPlayer}
                             />
                         </div>
                     </div>
