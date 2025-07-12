@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useGameLogic } from '../hooks/useGameLogic';
 import MobileGameBoard from '../components/MobileGameBoard';
@@ -7,8 +6,9 @@ import {
     Sword, Shield, Crown, Gem, Star, AlertTriangle, Skull, Package,
     Heart, Trophy, Target, Dices, User, Zap
 } from 'lucide-react';
-import { Item } from '../types/game.types';
+import { ItemSlot } from '../types/game.types';
 import MobileBattleScreen from '../components/MobileBattleScreen';
+import backgroundImg from '../assets/images/background.jpg';
 
 interface MobileLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -41,22 +41,28 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
     const [activeTab, setActiveTab] = useState<'game' | 'inventory' | 'stats'>('game');
 
     const handleRewardClose = () => {
-        // Only call the available function from props
-        props.setCurrentReward(null);
-        // The game logic should handle the rest automatically
+        // Use the handleRewardDismiss function from props
+        props.handleRewardDismiss();
     };
 
     if (gameMode === 'menu') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold text-white mb-8">Quiz Board Game</h1>
-                    <button
-                        onClick={() => props.setGameMode('setup')}
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300"
-                    >
-                        Start Game
-                    </button>
+            <div className="min-h-screen relative">
+                <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${backgroundImg})` }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-60" />
+                <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+                    <div className="text-center">
+                        <h1 className="text-4xl font-bold text-white mb-8">The Sword and The Staff</h1>
+                        <button
+                            onClick={() => props.setGameMode('setup')}
+                            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300"
+                        >
+                            Start Game
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -64,36 +70,43 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
 
     if (gameMode === 'setup') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full">
-                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Game Setup</h2>
-                    <div className="space-y-4">
-                        <input
-                            type="text"
-                            placeholder="Enter your name"
-                            value={props.playerSetup.name}
-                            onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <select
-                            value={props.playerSetup.playerCount}
-                            onChange={(e) => props.setPlayerSetup({...props.playerSetup, playerCount: parseInt(e.target.value)})}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                            <option value={2}>2 Players</option>
-                            <option value={3}>3 Players</option>
-                            <option value={4}>4 Players</option>
-                        </select>
-                        <button
-                            onClick={() => {
-                                console.log('Mobile startGame clicked with:', props.playerSetup);
-                                props.startGame();
-                            }}
-                            disabled={!props.playerSetup.name.trim()}
-                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Start Game
-                        </button>
+            <div className="min-h-screen relative">
+                <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${backgroundImg})` }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-60" />
+                <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full">
+                        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Game Setup</h2>
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Enter your name"
+                                value={props.playerSetup.name}
+                                onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                            <select
+                                value={props.playerSetup.playerCount}
+                                onChange={(e) => props.setPlayerSetup({...props.playerSetup, playerCount: parseInt(e.target.value)})}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                                <option value={2}>2 Players</option>
+                                <option value={3}>3 Players</option>
+                                <option value={4}>4 Players</option>
+                            </select>
+                            <button
+                                onClick={() => {
+                                    console.log('Mobile startGame clicked with:', props.playerSetup);
+                                    props.startGame();
+                                }}
+                                disabled={!props.playerSetup.name.trim()}
+                                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Start Game
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -156,44 +169,6 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 </div>
             )}
 
-            {/* Question Section */}
-            {gameState.phase === 'question' && gameState.currentQuestion && (
-                <div className="bg-white rounded-lg p-4 shadow-lg">
-                    <div className="mb-3">
-                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">
-                            {gameState.currentQuestion.category}
-                        </span>
-                        <h3 className="font-bold text-gray-800 text-sm">
-                            {gameState.currentQuestion.question}
-                        </h3>
-                    </div>
-                    <div className="space-y-2">
-                        {gameState.currentQuestion.options.map((option, index) => (
-                            <button
-                                key={index}
-                                onClick={() => props.setSelectedAnswer(index)}
-                                disabled={props.selectedAnswer !== null || currentPlayer?.id !== '1'}
-                                className={`w-full p-3 text-left border-2 rounded-lg transition-all text-sm ${
-                                    props.selectedAnswer === index
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 hover:border-blue-300'
-                                } ${currentPlayer?.id !== '1' ? 'opacity-50' : ''}`}
-                            >
-                                {String.fromCharCode(65 + index)}. {option}
-                            </button>
-                        ))}
-                    </div>
-                    {props.selectedAnswer !== null && currentPlayer?.id === '1' && (
-                        <button
-                            onClick={props.handleAnswerSubmit}
-                            className="w-full mt-3 bg-green-600 text-white font-bold py-2 rounded-lg"
-                        >
-                            Submit Answer
-                        </button>
-                    )}
-                </div>
-            )}
-
             {/* Battle Section */}
             {gameState.phase === 'battle' && gameState.currentBattle && (
                 <MobileBattleScreen
@@ -234,7 +209,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
         </div>
     );
 
-    // Inventory Screen Content
+
+// Inventory Screen Content
     const InventoryContent = () => (
         <div className="space-y-4">
             <div className="bg-white rounded-lg p-4 shadow-lg">
@@ -246,7 +222,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                             return (
                                 <div
                                     key={index}
-                                    className={`p-3 rounded-lg border-2 ${rarityConfig.bgColor}`}
+                                    onClick={() => props.handleEquipItem(item)}
+                                    className={`p-3 rounded-lg border-2 ${rarityConfig.bgColor} cursor-pointer active:scale-95 transition-transform`}
                                 >
                                     <div className="flex items-center space-x-2 mb-2">
                                         <ItemIcon icon={item.icon} size={16} />
@@ -255,6 +232,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                                     <div className="text-xs text-gray-600">
                                         <div className="capitalize">{item.rarity} {item.type}</div>
                                         <div>Stats: {item.stats}</div>
+                                    </div>
+                                    <div className="mt-2 text-xs text-blue-600 font-semibold">
+                                        Tap to equip
                                     </div>
                                 </div>
                             );
@@ -273,13 +253,20 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 {Object.keys(humanPlayer?.equipped || {}).length ? (
                     <div className="space-y-3">
                         {Object.entries(humanPlayer?.equipped || {}).map(([slot, item]) => (
-                            <div key={slot} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div
+                                key={slot}
+                                onClick={() => props.handleUnequipItem(slot as ItemSlot)}
+                                className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg cursor-pointer active:scale-95 transition-transform"
+                            >
                                 <ItemIcon icon={item.icon} size={20} />
                                 <div className="flex-1">
                                     <div className="font-medium">{item.name}</div>
                                     <div className="text-sm text-gray-600 capitalize">{slot}</div>
                                 </div>
                                 <div className="text-sm font-bold text-green-600">+{item.stats}</div>
+                                <div className="text-xs text-red-600 font-semibold">
+                                    Tap to unequip
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -334,20 +321,6 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 <h3 className="font-bold text-gray-800 mb-4">Game Progress</h3>
                 <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Questions Answered</span>
-                        <div className="flex items-center space-x-2">
-                            <Target size={16} className="text-purple-500" />
-                            <span className="font-bold">{humanPlayer?.stats.questionsAnswered}</span>
-                        </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Correct Answers</span>
-                        <div className="flex items-center space-x-2">
-                            <Trophy size={16} className="text-green-500" />
-                            <span className="font-bold">{humanPlayer?.stats.correctAnswers}</span>
-                        </div>
-                    </div>
-                    <div className="flex justify-between items-center">
                         <span className="text-gray-600">Battles Won</span>
                         <div className="flex items-center space-x-2">
                             <Sword size={16} className="text-red-500" />
@@ -391,56 +364,63 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col">
-            {/* Reward Display */}
-            <RewardDisplay
-                item={props.currentReward}
-                onClose={handleRewardClose}
+        <div className="min-h-screen relative">
+            <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                style={{ backgroundImage: `url(${backgroundImg})` }}
             />
+            <div className="absolute inset-0 bg-black bg-opacity-60" />
+            <div className="relative z-10 min-h-screen flex flex-col">
+                {/* Reward Display */}
+                <RewardDisplay
+                    item={props.currentReward}
+                    onClose={handleRewardClose}
+                />
 
-            {/* Main Content */}
-            <div className="flex-1 p-4 pb-20">
-                {activeTab === 'game' && <GameContent />}
-                {activeTab === 'inventory' && <InventoryContent />}
-                {activeTab === 'stats' && <StatsContent />}
-            </div>
+                {/* Main Content */}
+                <div className="flex-1 p-4 pb-20">
+                    {activeTab === 'game' && <GameContent />}
+                    {activeTab === 'inventory' && <InventoryContent />}
+                    {activeTab === 'stats' && <StatsContent />}
+                </div>
 
-            {/* Mobile Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700">
-                <div className="flex justify-around p-3">
-                    <button
-                        onClick={() => setActiveTab('game')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                            activeTab === 'game'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-gray-400 hover:text-white'
-                        }`}
-                    >
-                        <Dices size={20} />
-                        <span className="text-xs mt-1">Game</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('inventory')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                            activeTab === 'inventory'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-gray-400 hover:text-white'
-                        }`}
-                    >
-                        <Package size={20} />
-                        <span className="text-xs mt-1">Inventory</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('stats')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                            activeTab === 'stats'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-gray-400 hover:text-white'
-                        }`}
-                    >
-                        <Trophy size={20} />
-                        <span className="text-xs mt-1">Stats</span>
-                    </button>
+                {/* Mobile Bottom Navigation */}
+                <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700">
+                    <div className="flex justify-around p-3">
+                        <button
+                            onClick={() => setActiveTab('game')}
+                            className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
+                                activeTab === 'game'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Dices size={20} />
+                            <span className="text-xs mt-1">Game</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('inventory')}
+                            className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
+                                activeTab === 'inventory'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Package size={20} />
+                            <span className="text-xs mt-1">Inventory</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('stats')}
+                            className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
+                                activeTab === 'stats'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Trophy size={20} />
+                            <span className="text-xs mt-1">Stats</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

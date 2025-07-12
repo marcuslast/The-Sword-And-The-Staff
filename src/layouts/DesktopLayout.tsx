@@ -183,8 +183,9 @@ const RewardDisplay: React.FC<{ item: Item | null; onClose: () => void }> = ({ i
 // Battle Component
 const BattleComponent: React.FC<{
     gameState: any;
-    onResolveBattle: () => void;
-}> = ({ gameState, onResolveBattle }) => {
+    battleLogic: any;
+    updateBattleState: any;
+}> = ({ gameState, battleLogic, updateBattleState }) => {
     if (!gameState.currentBattle || gameState.phase !== 'battle') return null;
 
     const currentPlayer = gameState.players.find((p: any) => p.id === gameState.currentPlayerId);
@@ -200,33 +201,55 @@ const BattleComponent: React.FC<{
                     <div className="bg-blue-50 p-4 rounded-lg">
                         <h4 className="font-bold text-blue-600 mb-2">{currentPlayer?.username}</h4>
                         <div className="space-y-1 text-sm">
-                            <div>Health: {currentPlayer?.health}/{currentPlayer?.maxHealth}</div>
-                            <div>Attack: {currentPlayer?.baseStats.attack}</div>
-                            <div>Defense: {currentPlayer?.baseStats.defense}</div>
+                            <div>Health: {gameState.currentBattle.playerHealth}/{gameState.currentBattle.playerMaxHealth}</div>
+                            <div>Attack: {gameState.currentBattle.playerStats.attack}</div>
+                            <div>Defense: {gameState.currentBattle.playerStats.defense}</div>
                         </div>
                     </div>
 
                     <div className="bg-red-50 p-4 rounded-lg">
                         <h4 className="font-bold text-red-600 mb-2">{gameState.currentBattle.enemy.name}</h4>
                         <div className="space-y-1 text-sm">
-                            <div>Health: {gameState.currentBattle.enemy.health}</div>
+                            <div>Health: {gameState.currentBattle.enemyHealth}/{gameState.currentBattle.enemyMaxHealth}</div>
                             <div>Power: {gameState.currentBattle.enemy.power}</div>
                         </div>
                     </div>
                 </div>
 
-                {isPlayerTurn && (
-                    <button
-                        onClick={onResolveBattle}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
-                    >
-                        Fight!
-                    </button>
+                {gameState.currentBattle.phase === 'player_attack' && isPlayerTurn && (
+                    <div className="space-x-4">
+                        <button
+                            onClick={() => {
+                                const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
+                                updateBattleState(newBattleState);
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+                        >
+                            Attack!
+                        </button>
+                        <button
+                            onClick={() => {
+                                const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
+                                updateBattleState(newBattleState);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+                        >
+                            Defend
+                        </button>
+                    </div>
                 )}
 
-                {!isPlayerTurn && (
-                    <div className="text-gray-600 font-medium">
-                        🤖 AI is battling...
+                {gameState.currentBattle.phase === 'enemy_attack' && (
+                    <div className="text-gray-600 font-medium animate-pulse">
+                        🤖 {gameState.currentBattle.enemy.name} is attacking...
+                    </div>
+                )}
+
+                {(gameState.currentBattle.phase === 'victory' || gameState.currentBattle.phase === 'defeat') && (
+                    <div className={`text-2xl font-bold ${
+                        gameState.currentBattle.phase === 'victory' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                        {gameState.currentBattle.phase === 'victory' ? 'Victory!' : 'Defeated!'}
                     </div>
                 )}
             </div>
@@ -356,17 +379,10 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                 <div className="fixed inset-0 pointer-events-none">
                     <div className="flex items-center justify-center min-h-screen p-4">
                         <div className="pointer-events-auto max-w-2xl w-full">
-                            <QuestionComponent
-                                gameState={gameState}
-                                selectedAnswer={props.selectedAnswer}
-                                setSelectedAnswer={props.setSelectedAnswer}
-                                showResult={props.showResult}
-                                handleAnswerSubmit={props.handleAnswerSubmit}
-                            />
-
                             <BattleComponent
                                 gameState={gameState}
-                                onResolveBattle={props.resolveBattle}
+                                battleLogic={props.battleLogic}
+                                updateBattleState={props.updateBattleState}
                             />
                         </div>
                     </div>

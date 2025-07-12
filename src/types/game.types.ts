@@ -31,6 +31,7 @@ export interface Enemy {
     health: number;
     power: number;
     reward: Item;
+    image: string;
 }
 
 export interface Tile {
@@ -47,9 +48,8 @@ export interface GameState {
     players: Player[];
     currentPlayerId: string;
     board: Tile[];
-    phase: 'rolling' | 'moving' | 'question' | 'battle' | 'trap' | 'reward' | 'game_over' | 'selecting_tile';
+    phase: 'rolling' | 'moving' | 'battle' | 'trap' | 'reward' | 'game_over' | 'selecting_tile' | 'finishing';
     diceValue: number | null;
-    currentQuestion: Question | null;
     currentBattle: BattleState | null;
     activeTrap: Trap | null;
     winner: Player | null;
@@ -111,11 +111,9 @@ export interface Player {
     health: number;
     maxHealth: number;
     inventory: Item[];
-    equipped: EquipmentSlots; // Add this
-    baseStats: PlayerStats; // Add this
+    equipped: EquipmentSlots;
+    baseStats: PlayerStats;
     stats: {
-        questionsAnswered: number;
-        correctAnswers: number;
         battlesWon: number;
         tilesMovedTotal: number;
     };

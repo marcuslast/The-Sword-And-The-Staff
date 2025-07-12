@@ -8,7 +8,7 @@ import {
     Tile
 } from '../types/game.types';
 import { createGameBoard, getAvailableTiles, getOrderedPathTiles, generateRandomItem } from '../utils/gameLogic';
-import { PLAYER_COLORS, generateRandomQuestion } from '../utils/gameData';
+import { PLAYER_COLORS } from '../utils/gameData';
 import { getItemSlot, calculateTotalStats } from '../utils/equipmentLogic';
 import { BattleState } from '../types/game.types';
 import { useBattleLogic } from './useBattleLogic';
@@ -22,13 +22,10 @@ export const useGameLogic = () => {
         board: [],
         phase: 'rolling',
         diceValue: null,
-        currentQuestion: null,
         currentBattle: null,
         activeTrap: null,
         winner: null
     });
-    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-    const [showResult, setShowResult] = useState(false);
     const [diceRolling, setDiceRolling] = useState(false);
     const [playerSetup, setPlayerSetup] = useState({ name: '', playerCount: 2 });
     const [availableTiles, setAvailableTiles] = useState<number[]>([]);
@@ -38,53 +35,79 @@ export const useGameLogic = () => {
 
     const battleLogic = useBattleLogic();
 
-    const updateBattleState = (newBattleState: BattleState) => {
+    const handleRewardDismiss = () => {
+        setCurrentReward(null);
+        setCanEndTurn(true);
         setGameState(prev => ({
             ...prev,
-            currentBattle: newBattleState
+            phase: 'finishing'
         }));
     };
 
-    const completeBattle = (playerWon: boolean, battleState: BattleState) => {
+    // Battle State Handler Effect
+    useEffect(() => {
+        if (!gameState.currentBattle || !gameState.players.length) return;
+
+        const battle = gameState.currentBattle;
         const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
         if (!currentPlayer) return;
 
-        if (playerWon) {
-            // Player wins - gets reward
-            const reward = battleState.enemy.reward;
-            setGameState(prev => ({
-                ...prev,
-                players: prev.players.map(p =>
-                    p.id === currentPlayer.id
-                        ? {
-                            ...p,
-                            inventory: [...p.inventory, reward],
-                            stats: {
-                                ...p.stats,
-                                battlesWon: p.stats.battlesWon + 1
-                            }
-                        }
-                        : p
-                ),
-                phase: 'reward',
-                currentBattle: null
-            }));
-            setCurrentReward(reward);
-        } else {
-            // Player loses - takes damage
-            setGameState(prev => ({
-                ...prev,
-                players: prev.players.map(p =>
-                    p.id === currentPlayer.id
-                        ? { ...p, health: Math.max(0, battleState.playerHealth) }
-                        : p
-                ),
-                phase: 'rolling',
-                currentBattle: null
-            }));
-            setCanEndTurn(true);
+        // Handle enemy attacks (happens after player attacks)
+        if (battle.phase === 'enemy_attack') {
+            const timer = setTimeout(() => {
+                const newBattleState = battleLogic.enemyAttack(battle);
+                setGameState(prev => ({
+                    ...prev,
+                    currentBattle: newBattleState
+                }));
+            }, 2000);
+            return () => clearTimeout(timer);
         }
-    };
+
+        // Handle battle resolution
+        if (battle.phase === 'victory' || battle.phase === 'defeat') {
+            const timer = setTimeout(() => {
+                const playerWon = battle.phase === 'victory';
+
+                if (playerWon && battle.enemy.reward) {
+                    // Player wins - gets reward and updates health from battle
+                    setGameState(prev => ({
+                        ...prev,
+                        players: prev.players.map(p =>
+                            p.id === currentPlayer.id
+                                ? {
+                                    ...p,
+                                    health: battle.playerHealth, // Keep the health from battle
+                                    inventory: [...p.inventory, battle.enemy.reward],
+                                    stats: {
+                                        ...p.stats,
+                                        battlesWon: p.stats.battlesWon + 1
+                                    }
+                                }
+                                : p
+                        ),
+                        phase: 'reward',
+                        currentBattle: null
+                    }));
+                    setCurrentReward(battle.enemy.reward);
+                } else {
+                    // Player loses - update health from battle state
+                    setGameState(prev => ({
+                        ...prev,
+                        players: prev.players.map(p =>
+                            p.id === currentPlayer.id
+                                ? { ...p, health: Math.max(0, battle.playerHealth) }
+                                : p
+                        ),
+                        phase: 'finishing',
+                        currentBattle: null
+                    }));
+                    setCanEndTurn(true);
+                }
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState.currentBattle?.phase, gameState.currentPlayerId]);
 
     // AI Logic Effect
     useEffect(() => {
@@ -106,51 +129,11 @@ export const useGameLogic = () => {
                     }
                     break;
 
-                case 'question':
-                    if (!gameState.currentQuestion) return;
-                    setTimeout(() => {
-                        const randomAnswer = Math.floor(Math.random() * 4);
-                        setSelectedAnswer(randomAnswer);
-                        setShowResult(true);
-
-                        const isCorrect = randomAnswer === gameState.currentQuestion!.correctAnswer;
-                        setGameState(prev => ({
-                            ...prev,
-                            players: prev.players.map(p =>
-                                p.id === currentPlayer.id
-                                    ? {
-                                        ...p,
-                                        stats: {
-                                            ...p.stats,
-                                            questionsAnswered: p.stats.questionsAnswered + 1,
-                                            correctAnswers: p.stats.correctAnswers + (isCorrect ? 1 : 0)
-                                        }
-                                    }
-                                    : p
-                            )
-                        }));
-
-                        setTimeout(() => {
-                            setShowResult(false);
-                            setSelectedAnswer(null);
-
-                            if (isCorrect && gameState.diceValue) {
-                                const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
-                                setAvailableTiles(availablePositions);
-                                setIsSelectingTile(true);
-                                setGameState(prev => ({
-                                    ...prev,
-                                    phase: 'selecting_tile',
-                                    currentQuestion: null
-                                }));
-                            } else {
-                                setTimeout(() => endTurn(), 1000);
-                            }
-                        }, 2500);
-                    }, 2000);
-                    break;
-
                 case 'selecting_tile':
+                    const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
+                    setAvailableTiles(availablePositions);
+                    setIsSelectingTile(true);
+
                     if (availableTiles.length > 0) {
                         setTimeout(() => {
                             const randomTileIndex = Math.floor(Math.random() * availableTiles.length);
@@ -162,21 +145,49 @@ export const useGameLogic = () => {
 
                 case 'battle':
                     if (gameState.currentBattle) {
-                        // AI automatically attacks
-                        setTimeout(() => {
-                            if (gameState.currentBattle?.phase === 'player_attack') {
-                                const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
-                                updateBattleState(newBattleState);
+                        const battle = gameState.currentBattle;
 
-                                // Check if battle is over
-                                if (newBattleState.phase === 'victory' || newBattleState.phase === 'defeat') {
+                        // Handle AI battle turns
+                        if (battle.phase === 'player_attack') {
+                            setTimeout(() => {
+                                const newBattleState = battleLogic.playerAttack(battle);
+                                setGameState(prev => ({
+                                    ...prev,
+                                    currentBattle: newBattleState
+                                }));
+
+                                // Immediately check if battle should continue
+                                if (newBattleState.phase === 'enemy_attack') {
                                     setTimeout(() => {
-                                        const result = battleLogic.resolveBattle(newBattleState);
-                                        completeBattle(result.playerWon, newBattleState);
+                                        const enemyAttackState = battleLogic.enemyAttack(newBattleState);
+                                        setGameState(prev => ({
+                                            ...prev,
+                                            currentBattle: enemyAttackState
+                                        }));
                                     }, 2000);
                                 }
-                            }
-                        }, 2000);
+                            }, 2000);
+                        }
+                        else if (battle.phase === 'enemy_attack') {
+                            setTimeout(() => {
+                                const newBattleState = battleLogic.enemyAttack(battle);
+                                setGameState(prev => ({
+                                    ...prev,
+                                    currentBattle: newBattleState
+                                }));
+
+                                // Immediately check if battle should continue
+                                if (newBattleState.phase === 'player_attack') {
+                                    setTimeout(() => {
+                                        const playerAttackState = battleLogic.playerAttack(newBattleState);
+                                        setGameState(prev => ({
+                                            ...prev,
+                                            currentBattle: playerAttackState
+                                        }));
+                                    }, 2000);
+                                }
+                            }, 2000);
+                        }
                     }
                     break;
 
@@ -186,17 +197,23 @@ export const useGameLogic = () => {
                         setCanEndTurn(true);
                         setGameState(prev => ({
                             ...prev,
-                            phase: 'rolling'
+                            phase: 'finishing'
                         }));
                     }, 3000);
+                    break;
+
+                case 'finishing':
+                    if (canEndTurn) {
+                        setTimeout(() => endTurn(), 1500);
+                    }
                     break;
             }
         };
 
-        if (!showResult && !currentReward) {
+        if (!currentReward) {
             handleAIAction();
         }
-    }, [gameState.currentPlayerId, gameState.phase, gameState.currentQuestion, canEndTurn]);
+    }, [gameState.currentPlayerId, gameState.phase, canEndTurn]);
 
     // Game Functions
     const startGame = () => {
@@ -210,14 +227,12 @@ export const useGameLogic = () => {
                 inventory: [],
                 equipped: {},
                 baseStats: {
-                    attack: 10,
+                    attack: playerSetup.name === 'mlast' ? 1000 : 10,
                     defense: 10,
                     health: 100,
                     speed: 10
                 },
                 stats: {
-                    questionsAnswered: 0,
-                    correctAnswers: 0,
                     battlesWon: 0,
                     tilesMovedTotal: 0
                 },
@@ -242,8 +257,6 @@ export const useGameLogic = () => {
                     speed: 10
                 },
                 stats: {
-                    questionsAnswered: 0,
-                    correctAnswers: 0,
                     battlesWon: 0,
                     tilesMovedTotal: 0
                 },
@@ -268,75 +281,39 @@ export const useGameLogic = () => {
 
         setTimeout(() => {
             const value = Math.floor(Math.random() * 6) + 1;
-            setGameState(prev => ({
-                ...prev,
-                diceValue: value,
-                phase: 'question'
-            }));
-            setDiceRolling(false);
 
-            setTimeout(() => {
-                const question = generateRandomQuestion();
-                setGameState(prev => ({
+            setGameState(prev => {
+                const newState = {
                     ...prev,
-                    currentQuestion: question,
-                    phase: 'question'
-                }));
-                setSelectedAnswer(null);
-                setShowResult(false);
-            }, 500);
-        }, 1000);
-    };
+                    diceValue: value,
+                };
 
-    const handleAnswerSubmit = () => {
-        if (selectedAnswer === null || !gameState.currentQuestion) return;
+                // Get current player based on the previous state
+                const currentPlayer = prev.players.find(p => p.id === prev.currentPlayerId);
 
-        setShowResult(true);
-        const isCorrect = selectedAnswer === gameState.currentQuestion.correctAnswer;
-        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
-        if (!currentPlayer) return;
+                setTimeout(() => {
+                    if (currentPlayer) {
+                        const availablePositions = getAvailableTiles(
+                            currentPlayer.position,
+                            value, // Use the local value variable
+                            prev.board
+                        );
+                        setAvailableTiles(availablePositions);
+                        setIsSelectingTile(true);
 
-        setGameState(prev => ({
-            ...prev,
-            players: prev.players.map(p =>
-                p.id === currentPlayer.id
-                    ? {
-                        ...p,
-                        stats: {
-                            ...p.stats,
-                            questionsAnswered: p.stats.questionsAnswered + 1,
-                            correctAnswers: p.stats.correctAnswers + (isCorrect ? 1 : 0)
-                        }
+                        // Use the callback form to ensure we have the latest state
+                        setGameState(gameStatePrev => ({
+                            ...gameStatePrev,
+                            phase: 'selecting_tile',
+                        }));
                     }
-                    : p
-            )
-        }));
+                }, 500);
 
-        setTimeout(() => {
-            setShowResult(false);
-            setSelectedAnswer(null);
+                return newState;
+            });
 
-            if (isCorrect) {
-                if (gameState.diceValue) {
-                    const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
-                    setAvailableTiles(availablePositions);
-                    setIsSelectingTile(true);
-                    setGameState(prev => ({
-                        ...prev,
-                        phase: 'selecting_tile',
-                        currentQuestion: null
-                    }));
-                }
-            } else {
-                setGameState(prev => ({
-                    ...prev,
-                    currentQuestion: null,
-                    phase: 'rolling',
-                    diceValue: null
-                }));
-                endTurn();
-            }
-        }, 2000);
+            setDiceRolling(false);
+        }, 1000);
     };
 
     const handleTileSelection = (position: number) => {
@@ -356,6 +333,7 @@ export const useGameLogic = () => {
         // Update player position
         setGameState(prev => ({
             ...prev,
+            phase: 'finishing',
             players: prev.players.map(p =>
                 p.id === currentPlayer.id
                     ? {
@@ -430,7 +408,7 @@ export const useGameLogic = () => {
                 setCanEndTurn(true);
                 setGameState(prev => ({
                     ...prev,
-                    phase: 'rolling'
+                    phase: 'finishing'
                 }));
                 break;
         }
@@ -446,7 +424,7 @@ export const useGameLogic = () => {
                             ? { ...p, health: Math.max(0, p.health - trap.stats) }
                             : p
                     ),
-                    phase: 'rolling'
+                    phase: 'finishing'
                 }));
                 break;
 
@@ -463,7 +441,7 @@ export const useGameLogic = () => {
                                 }
                                 : p
                         ),
-                        phase: 'rolling'
+                        phase: 'finishing'
                     }));
                 }
                 break;
@@ -471,65 +449,11 @@ export const useGameLogic = () => {
             default:
                 setGameState(prev => ({
                     ...prev,
-                    phase: 'rolling'
+                    phase: 'finishing'
                 }));
                 break;
         }
         setCanEndTurn(true);
-    };
-
-    const resolveBattle = () => {
-        if (!gameState.currentBattle) return;
-
-        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
-        if (!currentPlayer) return;
-
-        const playerStats = calculateTotalStats(currentPlayer);
-        const enemy = gameState.currentBattle.enemy;
-
-        // Simple battle resolution
-        const playerPower = playerStats.attack;
-        const enemyPower = enemy.power;
-        const playerDefense = playerStats.defense;
-
-        const playerWins = playerPower > enemyPower * 0.8; // Give player slight advantage
-
-        if (playerWins) {
-            // Player wins - gets reward
-            const reward = enemy.reward;
-            setGameState(prev => ({
-                ...prev,
-                players: prev.players.map(p =>
-                    p.id === currentPlayer.id
-                        ? {
-                            ...p,
-                            inventory: [...p.inventory, reward],
-                            stats: {
-                                ...p.stats,
-                                battlesWon: p.stats.battlesWon + 1
-                            }
-                        }
-                        : p
-                ),
-                phase: 'reward',
-                currentBattle: null
-            }));
-            setCurrentReward(reward);
-        } else {
-            // Player loses - takes damage
-            const damage = Math.max(1, enemyPower - playerDefense);
-            setGameState(prev => ({
-                ...prev,
-                players: prev.players.map(p =>
-                    p.id === currentPlayer.id
-                        ? { ...p, health: Math.max(0, p.health - damage) }
-                        : p
-                ),
-                phase: 'rolling',
-                currentBattle: null
-            }));
-            setCanEndTurn(true);
-        }
     };
 
     const endTurn = () => {
@@ -537,8 +461,6 @@ export const useGameLogic = () => {
         setCanEndTurn(false);
         setIsSelectingTile(false);
         setAvailableTiles([]);
-        setSelectedAnswer(null);
-        setShowResult(false);
 
         // Get next player
         const currentIndex = gameState.players.findIndex(p => p.id === gameState.currentPlayerId);
@@ -628,13 +550,56 @@ export const useGameLogic = () => {
         }));
     };
 
+    const updateBattleState = (newBattleState: BattleState) => {
+        setGameState(prev => ({
+            ...prev,
+            currentBattle: newBattleState
+        }));
+    };
+
+    const completeBattle = (playerWon: boolean, battleState: BattleState) => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer) return;
+
+        // Update player stats and health
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p =>
+                p.id === currentPlayer.id
+                    ? {
+                        ...p,
+                        health: battleState.playerHealth,
+                        stats: {
+                            ...p.stats,
+                            battlesWon: p.stats.battlesWon + (playerWon ? 1 : 0)
+                        }
+                    }
+                    : p
+            ),
+            currentBattle: null,
+            phase: playerWon ? 'reward' : 'finishing'
+        }));
+
+        // If player won, give them the enemy's reward
+        if (playerWon && battleState.enemy.reward) {
+            setCurrentReward(battleState.enemy.reward);
+        } else {
+            setCanEndTurn(true);
+        }
+    };
+
+    const resolveBattle = () => {
+        if (!gameState.currentBattle) return;
+
+        const result = battleLogic.resolveBattle(gameState.currentBattle);
+        completeBattle(result.playerWon, gameState.currentBattle);
+    };
+
     return {
         // State
         gameMode,
         players,
         gameState,
-        selectedAnswer,
-        showResult,
         diceRolling,
         playerSetup,
         availableTiles,
@@ -644,23 +609,23 @@ export const useGameLogic = () => {
 
         // Setters
         setGameMode,
+        setGameState,
         setPlayerSetup,
-        setSelectedAnswer,
         setCurrentReward,
 
         // Functions
         startGame,
         rollDice,
-        handleAnswerSubmit,
         handleTileSelection,
         endTurn,
-        resolveBattle,
         handleEquipItem,
         handleUnequipItem,
+        handleRewardDismiss,
 
-        // Battle functions
+        // Battle logic
+        battleLogic,
         updateBattleState,
         completeBattle,
-        battleLogic
+        resolveBattle
     };
 };

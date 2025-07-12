@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -41,7 +42,6 @@
 .swipe-hint {
     animation: swipe-hint 2s ease-in-out infinite;
 }
-
 
 /* Touch feedback */
 .touch-feedback {
@@ -97,4 +97,58 @@
 
 .animate-diceRoll {
     animation: diceRoll 0.6s ease-in-out;
+}
+
+/* Flashing border for winning dice */
+@keyframes flashBorder {
+    0%, 100% {
+        border-color: rgba(34, 197, 94, 0.8);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+    }
+    50% {
+        border-color: rgba(34, 197, 94, 1);
+        box-shadow: 0 0 40px rgba(34, 197, 94, 0.8);
+    }
+}
+
+.animate-flashBorder {
+    animation: flashBorder 1s ease-in-out infinite;
+    border-width: 3px;
+    border-style: solid;
+}
+
+/* Alternative golden flash for critical hits */
+@keyframes flashGold {
+    0%, 100% {
+        border-color: rgba(251, 191, 36, 0.8);
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+    }
+    50% {
+        border-color: rgba(251, 191, 36, 1);
+        box-shadow: 0 0 40px rgba(251, 191, 36, 0.8);
+    }
+}
+
+.animate-flashGold {
+    animation: flashGold 1s ease-in-out infinite;
+    border-width: 3px;
+    border-style: solid;
+}
+
+/* Losing dice dim effect */
+@keyframes dimBorder {
+    0%, 100% {
+        border-color: rgba(239, 68, 68, 0.6);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        border-color: rgba(239, 68, 68, 0.8);
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.animate-dimBorder {
+    animation: dimBorder 1s ease-in-out infinite;
+    border-width: 2px;
+    border-style: solid;
 }

@@ -25,8 +25,6 @@ const GameStatus: React.FC<GameStatusProps> = ({
         switch (gameState.phase) {
             case 'rolling':
                 return 'Roll the dice to start your turn!';
-            case 'question':
-                return 'Answer the question to proceed!';
             case 'selecting_tile':
                 return `Correct! Choose where to move (up to ${gameState.diceValue} spaces)`;
             case 'moving':
@@ -58,7 +56,7 @@ const GameStatus: React.FC<GameStatusProps> = ({
             </div>
 
             {/* Dice Section */}
-            {(gameState.phase === 'rolling' || (gameState.diceValue !== null && gameState.phase === 'question')) && (
+            {(gameState.phase === 'rolling' || (gameState.diceValue !== null && gameState.phase !== 'selecting_tile')) && (
                 <div className="flex justify-center">
                     <AnimatedDice
                         value={gameState.diceValue}

@@ -1,4 +1,5 @@
 import { Item, Enemy, Question } from '../types/game.types';
+import {ENEMY_IMAGES} from "./enemyImage";
 
 export const PLAYER_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B'];
 
@@ -197,12 +198,17 @@ export const ITEM_POOL: Omit<Item, 'id'>[] = [
     ...MYTHIC
 ];
 
-// Sample enemies
 export const ENEMIES: Omit<Enemy, 'id' | 'reward'>[] = [
-    { name: 'Goblin Scout', health: 30, power: 15 },
-    { name: 'Stone Golem', health: 50, power: 25 },
-    { name: 'Dark Knight', health: 70, power: 35 },
-    { name: 'Dragon Whelp', health: 100, power: 50 }
+    { name: 'Goblin Scout', health: 30, power: 15, image: ENEMY_IMAGES['goblin_scout'] },
+    { name: 'Stone Golem', health: 50, power: 25, image: ENEMY_IMAGES['stone_golem'] },
+    { name: 'Dark Knight', health: 70, power: 35, image: ENEMY_IMAGES['dark_knight'] },
+    { name: 'Dragon Whelp', health: 10, power: 5, image: ENEMY_IMAGES['dragon_whelp'] },
+    { name: 'Shadow Stalker', health: 40, power: 20, image: ENEMY_IMAGES['shadow_stalker'] },
+    { name: 'Venomfang Serpent', health: 55, power: 25, image: ENEMY_IMAGES['venomfang_serpent'] },
+    { name: 'Cursed Revenant', health: 60, power: 30, image: ENEMY_IMAGES['cursed_revenant'] },
+    { name: 'Inferno Imp', health: 25, power: 18, image: ENEMY_IMAGES['inferno_imp'] },
+    { name: 'Frost Wraith', health: 50, power: 22, image: ENEMY_IMAGES['frost_wraith'] },
+    { name: 'Medusa', health: 70, power: 30, image: ENEMY_IMAGES['medusa'] },
 ];
 
 // Sample questions

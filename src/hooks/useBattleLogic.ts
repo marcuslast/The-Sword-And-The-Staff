@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { BattleState, Enemy, Player, BattleRound } from '../types/game.types';
 import {
     rollDice,
@@ -10,9 +9,6 @@ import {
 import { calculateTotalStats } from '../utils/equipmentLogic';
 
 export const useBattleLogic = () => {
-    const [battleState, setBattleState] = useState<BattleState | null>(null);
-    const [isProcessing, setIsProcessing] = useState(false);
-
     const initiateBattle = (enemy: Enemy, player: Player): BattleState => {
         const playerStats = calculateTotalStats(player);
 
@@ -40,7 +36,6 @@ export const useBattleLogic = () => {
             playerStats
         };
 
-        setBattleState(initialState);
         return initialState;
     };
 
@@ -55,21 +50,19 @@ export const useBattleLogic = () => {
         let round: BattleRound;
 
         if (attackRoll.isCriticalFail) {
-            // Critical fail - miss and something bad happens
             round = {
                 playerRoll: attackRoll,
-                enemyRoll: rollDice('d20'), // Dummy roll for enemy
+                enemyRoll: rollDice('d20'),
                 isPlayerTurn: true,
                 description: `Critical fail! You stumble and miss completely!`
             };
         } else if (attackRoll.total >= enemyAC || attackRoll.isCritical) {
-            // Hit! Calculate damage
             const damage = calculateDamage(state.playerStats.attack, attackRoll.isCritical);
             newState.enemyHealth = Math.max(0, newState.enemyHealth - damage);
 
             round = {
                 playerRoll: attackRoll,
-                enemyRoll: rollDice('d20'), // Dummy roll
+                enemyRoll: rollDice('d20'),
                 damage,
                 isPlayerTurn: true,
                 description: attackRoll.isCritical
@@ -77,10 +70,9 @@ export const useBattleLogic = () => {
                     : `Hit! You strike ${state.enemy.name} with your weapon!`
             };
         } else {
-            // Miss
             round = {
                 playerRoll: attackRoll,
-                enemyRoll: rollDice('d20'), // Dummy roll
+                enemyRoll: rollDice('d20'),
                 isPlayerTurn: true,
                 description: `Miss! Your attack fails to connect (needed ${enemyAC}, rolled ${attackRoll.total}).`
             };
@@ -93,17 +85,14 @@ export const useBattleLogic = () => {
         if (newState.enemyHealth <= 0) {
             newState.phase = 'victory';
         } else {
-            // Enemy turn
             newState.phase = 'enemy_attack';
             newState.isPlayerTurn = false;
         }
 
-        setBattleState(newState);
         return newState;
     };
 
     const playerDefend = (state: BattleState): BattleState => {
-        // Defensive stance - gain temporary AC bonus but deal less damage
         const defenseRoll = rollDice('d20', calculateDefenseModifier(state.playerStats));
 
         let round: BattleRound = {
@@ -121,29 +110,25 @@ export const useBattleLogic = () => {
             isPlayerTurn: false
         };
 
-        setBattleState(newState);
         return newState;
     };
 
     const enemyAttack = (state: BattleState): BattleState => {
-        // Calculate enemy attack
         const enemyAttackModifier = Math.floor(state.enemy.power / 10);
         const enemyRoll = rollDice('d20', enemyAttackModifier);
 
-        // Player AC based on defense stats
         const playerAC = 10 + calculateDefenseModifier(state.playerStats);
 
         let newState = { ...state };
         let round: BattleRound;
 
         if (enemyRoll.total >= playerAC || enemyRoll.isCritical) {
-            // Enemy hits
             const damage = Math.floor(state.enemy.power / 5) + rollDice('d6').value;
             const critDamage = enemyRoll.isCritical ? damage * 2 : damage;
             newState.playerHealth = Math.max(0, newState.playerHealth - critDamage);
 
             round = {
-                playerRoll: rollDice('d20'), // Dummy roll
+                playerRoll: rollDice('d20'),
                 enemyRoll: enemyRoll,
                 damage: critDamage,
                 isPlayerTurn: false,
@@ -152,9 +137,8 @@ export const useBattleLogic = () => {
                     : `${state.enemy.name} hits you with a fierce attack!`
             };
         } else {
-            // Enemy misses
             round = {
-                playerRoll: rollDice('d20'), // Dummy roll
+                playerRoll: rollDice('d20'),
                 enemyRoll: enemyRoll,
                 isPlayerTurn: false,
                 description: `${state.enemy.name}'s attack misses! (needed ${playerAC}, rolled ${enemyRoll.total})`
@@ -168,12 +152,10 @@ export const useBattleLogic = () => {
         if (newState.playerHealth <= 0) {
             newState.phase = 'defeat';
         } else {
-            // Back to player turn
             newState.phase = 'player_attack';
             newState.isPlayerTurn = true;
         }
 
-        setBattleState(newState);
         return newState;
     };
 
@@ -181,32 +163,17 @@ export const useBattleLogic = () => {
         const playerWon = state.phase === 'victory';
         const totalDamage = state.playerMaxHealth - state.playerHealth;
 
-        setBattleState(null);
-
         return {
             playerWon,
             damage: totalDamage
         };
     };
 
-    // Auto process enemy turns
-    useEffect(() => {
-        if (battleState && battleState.phase === 'enemy_attack' && !isProcessing) {
-            setIsProcessing(true);
-            setTimeout(() => {
-                enemyAttack(battleState);
-                setIsProcessing(false);
-            }, 2000);
-        }
-    }, [battleState, isProcessing]);
-
     return {
-        battleState,
         initiateBattle,
         playerAttack,
         playerDefend,
         enemyAttack,
-        resolveBattle,
-        isProcessing
+        resolveBattle
     };
 };

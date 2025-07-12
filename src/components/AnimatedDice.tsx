@@ -6,9 +6,17 @@ interface AnimatedDiceProps {
     rolling: boolean;
     onRoll: () => void;
     disabled: boolean;
+    variant?: 'player' | 'enemy' | null | undefined;
 }
 
-const AnimatedDice: React.FC<AnimatedDiceProps> = ({ value, rolling, onRoll, disabled }) => {
+const AnimatedDice: React.FC<AnimatedDiceProps> = (
+    {
+        value,
+        rolling,
+        onRoll,
+        disabled,
+        variant = 'player'
+    }) => {
     // Dice face patterns using dots
     const getDiceFace = (num: number | null) => {
         if (num === null) return null;
@@ -24,13 +32,17 @@ const AnimatedDice: React.FC<AnimatedDiceProps> = ({ value, rolling, onRoll, dis
 
         const pattern = dotPatterns[num as keyof typeof dotPatterns] || dotPatterns[1];
 
+        const colorClasses = variant === 'enemy'
+            ? 'bg-gradient-to-br from-red-600 to-red-800'
+            : 'bg-gradient-to-br from-purple-600 to-indigo-700';
+
         return (
             <div className="grid grid-cols-3 gap-1 p-2 w-full h-full">
                 {pattern.map((hasDot, index) => (
                     <div
                         key={index}
                         className={`w-3 h-3 rounded-full ${
-                            hasDot ? 'bg-gray-800' : 'bg-transparent'
+                            colorClasses 
                         }`}
                     />
                 ))}

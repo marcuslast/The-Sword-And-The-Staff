@@ -1,5 +1,3 @@
-// src/components/MobileBattleScreen.tsx
-
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
 import { BattleState, DiceRoll } from '../types/game.types';
@@ -18,7 +16,10 @@ const AnimatedDice: React.FC<{
     roll: DiceRoll | null;
     rolling: boolean;
     size?: 'small' | 'large';
-}> = ({ roll, rolling, size = 'large' }) => {
+    variant?: 'player' | 'enemy' | null | undefined;
+    isWinner?: boolean;
+    isLoser?: boolean;
+}> = ({ roll, rolling, size = 'large', variant, isWinner, isLoser }) => {
     const [displayValue, setDisplayValue] = useState<number>(1);
 
     useEffect(() => {
@@ -36,11 +37,23 @@ const AnimatedDice: React.FC<{
         ? 'w-24 h-24 text-5xl'
         : 'w-16 h-16 text-3xl';
 
+    // Determine border animation class
+    let borderAnimationClass = '';
+    if (!rolling && roll) {
+        if (roll.isCritical) {
+            borderAnimationClass = 'animate-flashGold';
+        } else if (isWinner) {
+            borderAnimationClass = 'animate-flashBorder';
+        } else if (isLoser) {
+            borderAnimationClass = 'animate-dimBorder';
+        }
+    }
+
     return (
         <div className={`relative ${rolling ? 'animate-bounce' : ''}`}>
             <div className={`${sizeClasses} bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white font-bold shadow-2xl transform transition-all duration-300 ${
                 rolling ? 'rotate-180 scale-110' : 'rotate-0 scale-100'
-            } ${
+            } ${borderAnimationClass} ${
                 roll?.isCritical ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-yellow-400/50' : ''
             } ${
                 roll?.isCriticalFail ? 'ring-4 ring-red-500 ring-opacity-75 shadow-red-500/50' : ''
@@ -119,13 +132,13 @@ const CombatLogEntry: React.FC<{ round: any; index: number }> = ({ round, index 
                 </span>
                 <div className="flex items-center space-x-2">
                     <span className="text-xs text-gray-500">
-                        {getDiceIcon(round.playerRoll.type)}
+                        {getDiceIcon(round.playerRoll?.type || 'd20')}
                     </span>
                     <span className="font-bold text-sm text-white">
-                        {round.playerRoll.value}
-                        {round.playerRoll.modifier !== 0 && (
+                        {round.playerRoll?.value || round.enemyRoll?.value}
+                        {((round.playerRoll?.modifier || round.enemyRoll?.modifier) !== 0) && (
                             <span className="text-xs text-gray-400">
-                                {round.playerRoll.modifier > 0 ? '+' : ''}{round.playerRoll.modifier}
+                                {(round.playerRoll?.modifier || round.enemyRoll?.modifier) > 0 ? '+' : ''}{round.playerRoll?.modifier || round.enemyRoll?.modifier}
                             </span>
                         )}
                     </span>
@@ -153,21 +166,18 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
     const [rolling, setRolling] = useState(false);
     const [showEffects, setShowEffects] = useState(false);
 
-    useEffect(() => {
-        // Auto-process enemy turns after a delay
-        if (battleState.phase === 'enemy_attack' && !isPlayerTurn) {
-            const timer = setTimeout(() => {
-                // The parent component should handle the enemy attack
-                // by watching for phase changes
-            }, 2000);
-
-            return () => clearTimeout(timer);
-        }
-    }, [battleState.phase, isPlayerTurn]);
+    console.log('MobileBattleScreen render:', {
+        phase: battleState.phase,
+        isPlayerTurn,
+        roundsCount: battleState.rounds.length,
+        playerHealth: battleState.playerHealth,
+        enemyHealth: battleState.enemyHealth
+    });
 
     const latestRound = battleState.rounds[battleState.rounds.length - 1];
 
     const handleAction = (action: 'attack' | 'defend') => {
+        console.log('Battle action triggered:', action);
         setRolling(true);
         setShowEffects(false);
 
@@ -182,21 +192,64 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
         }, 1500);
     };
 
+    // Show battle results
+    if (battleState.phase === 'victory' || battleState.phase === 'defeat') {
+        return (
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-8 mb-6 shadow-2xl border border-gray-700/50 text-center">
+                {battleState.phase === 'victory' ? (
+                    <>
+                        <Trophy size={64} className="text-yellow-500 mx-auto mb-4 animate-bounce" />
+                        <h3 className="text-3xl font-bold text-yellow-500 mb-2">VICTORY!</h3>
+                        <p className="text-gray-300 mb-6">You defeated {battleState.enemy.name}!</p>
+                        <div className="bg-purple-900/50 rounded-2xl p-4 mb-6">
+                            <p className="text-sm text-gray-400 mb-2">Reward:</p>
+                            <p className="text-lg font-bold text-purple-300">
+                                {battleState.enemy.reward.name}
+                            </p>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <Skull size={64} className="text-red-500 mx-auto mb-4 animate-pulse" />
+                        <h3 className="text-3xl font-bold text-red-500 mb-2">DEFEATED!</h3>
+                        <p className="text-gray-300 mb-6">You were defeated by {battleState.enemy.name}!</p>
+                    </>
+                )}
+
+                <button
+                    onClick={onContinue}
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                >
+                    Continue
+                </button>
+            </div>
+        );
+    }
+
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 p-4">
+        <div className="space-y-4">
             {/* Battle Header */}
-            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-6 mb-6 shadow-2xl border border-gray-700/50">
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-gray-700/50">
                 <div className="text-center mb-4">
                     <h2 className="text-2xl font-bold text-white mb-2">⚔️ Battle!</h2>
-                    <p className="text-gray-400">Turn {battleState.currentRound}</p>
+                    <p className="text-gray-400">Round {battleState.currentRound}</p>
                 </div>
 
                 {/* Enemy Section */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
-                            <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Skull size={32} className="text-white" />
+                            <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+                                {battleState.enemy.image ? (
+                                    <img
+                                        src={battleState.enemy.image}
+                                        alt={battleState.enemy.name}
+                                        className="w-full h-full object-cover rounded-2xl"
+                                    />
+                                ) : (
+                                    <Skull size={32} className="text-white" />
+                                )}
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-white">{battleState.enemy.name}</h3>
@@ -247,24 +300,68 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
             </div>
 
             {/* Dice Roll Section */}
-            {(battleState.phase === 'player_attack' || battleState.phase === 'enemy_attack') && (
-                <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-6 mb-6 shadow-2xl border border-gray-700/50">
+            {(battleState.phase === 'player_attack' || battleState.phase === 'enemy_attack') && latestRound && (
+                <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-gray-700/50">
                     <div className="text-center">
-                        {latestRound && (
-                            <div className="mb-4">
+                        <h3 className="text-lg font-bold text-white mb-4">Dice Roll</h3>
+
+                        {/* Side by Side Dice */}
+                        <div className="flex items-center justify-center space-x-8 mb-6">
+                            {/* Player Dice */}
+                            <div className="text-center">
+                                <p className="text-sm font-medium text-blue-400 mb-2">Your Roll</p>
                                 <AnimatedDice
                                     roll={rolling ? null : latestRound.playerRoll}
-                                    rolling={rolling}
+                                    rolling={rolling && battleState.phase === 'player_attack'}
+                                    size="large"
+                                    variant="player"
+                                    isWinner={!rolling && latestRound.playerRoll && latestRound.enemyRoll &&
+                                        latestRound.playerRoll.total > latestRound.enemyRoll.total}
+                                    isLoser={!rolling && latestRound.playerRoll && latestRound.enemyRoll &&
+                                        latestRound.playerRoll.total < latestRound.enemyRoll.total}
                                 />
+                                {latestRound.playerRoll && !rolling && (
+                                    <div className="mt-2 text-xs text-gray-300">
+                                        Total: {latestRound.playerRoll.total}
+                                    </div>
+                                )}
                             </div>
-                        )}
 
+                            {/* VS Divider */}
+                            <div className="text-center">
+                                <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center border-2 border-gray-500">
+                                    <span className="text-white font-bold text-sm">VS</span>
+                                </div>
+                            </div>
+
+                            {/* Enemy Dice */}
+                            <div className="text-center">
+                                <p className="text-sm font-medium text-red-400 mb-2">Enemy Roll</p>
+                                <AnimatedDice
+                                    roll={rolling ? null : latestRound.enemyRoll}
+                                    rolling={rolling && battleState.phase === 'enemy_attack'}
+                                    size="large"
+                                    variant="enemy"
+                                    isWinner={!rolling && latestRound.playerRoll && latestRound.enemyRoll &&
+                                        latestRound.enemyRoll.total > latestRound.playerRoll.total}
+                                    isLoser={!rolling && latestRound.playerRoll && latestRound.enemyRoll &&
+                                        latestRound.enemyRoll.total < latestRound.playerRoll.total}
+                                />
+                                {latestRound.enemyRoll && !rolling && (
+                                    <div className="mt-2 text-xs text-gray-300">
+                                        Total: {latestRound.enemyRoll.total}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Damage Result */}
                         {showEffects && latestRound?.damage && (
                             <div className="animate-bounce">
                                 <div className="bg-orange-500/20 border-2 border-orange-500 rounded-2xl px-6 py-3 inline-block">
-                                    <span className="text-2xl font-bold text-orange-400">
-                                        💥 {latestRound.damage} DAMAGE!
-                                    </span>
+                        <span className="text-2xl font-bold text-orange-400">
+                            💥 {latestRound.damage} DAMAGE!
+                        </span>
                                 </div>
                             </div>
                         )}
@@ -274,7 +371,7 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
 
             {/* Action Buttons */}
             {battleState.phase === 'player_attack' && isPlayerTurn && !rolling && (
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-2 gap-4">
                     <button
                         onClick={() => handleAction('attack')}
                         className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
@@ -292,34 +389,13 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
                 </div>
             )}
 
-            {/* Victory/Defeat Screen */}
-            {(battleState.phase === 'victory' || battleState.phase === 'defeat') && (
-                <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-8 mb-6 shadow-2xl border border-gray-700/50 text-center">
-                    {battleState.phase === 'victory' ? (
-                        <>
-                            <Trophy size={64} className="text-yellow-500 mx-auto mb-4 animate-bounce" />
-                            <h3 className="text-3xl font-bold text-yellow-500 mb-2">VICTORY!</h3>
-                            <p className="text-gray-300 mb-6">You defeated {battleState.enemy.name}!</p>
-                            <div className="bg-purple-900/50 rounded-2xl p-4 mb-6">
-                                <p className="text-sm text-gray-400 mb-2">Reward:</p>
-                                <p className="text-lg font-bold text-purple-300">
-                                    {battleState.enemy.reward.name}
-                                </p>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <Skull size={64} className="text-red-500 mx-auto mb-4 animate-pulse" />
-                            <h3 className="text-3xl font-bold text-red-500 mb-2">DEFEATED!</h3>
-                            <p className="text-gray-300 mb-6">You were defeated by {battleState.enemy.name}!</p>
-                        </>
-                    )}
-                    <button
-                        onClick={onContinue}
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                    >
-                        Continue
-                    </button>
+            {/* Waiting for Enemy */}
+            {battleState.phase === 'enemy_attack' && (
+                <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl p-6 text-center text-gray-300">
+                    <div className="animate-pulse">
+                        <Skull size={48} className="mx-auto mb-2 text-red-500" />
+                        <p className="text-lg font-medium">{battleState.enemy.name} is attacking...</p>
+                    </div>
                 </div>
             )}
 

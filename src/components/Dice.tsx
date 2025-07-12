@@ -6,6 +6,7 @@ interface DiceProps {
     rolling: boolean;
     onRoll: () => void;
     disabled: boolean;
+    variant?: 'player' | 'enemy' | null;
 }
 
 const Dice: React.FC<DiceProps> = ({ value, rolling, onRoll, disabled }) => {

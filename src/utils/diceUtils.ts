@@ -1,5 +1,3 @@
-// src/utils/diceUtils.ts
-
 import { DiceRoll, PlayerStats } from '../types/game.types';
 
 export const rollDice = (type: DiceRoll['type'], modifier: number = 0): DiceRoll => {

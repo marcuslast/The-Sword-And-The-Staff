@@ -297,12 +297,10 @@ export const QuizBoardGameMobile: React.FC = () => {
         board: [],
         phase: 'rolling',
         diceValue: null,
-        currentQuestion: null,
         currentBattle: null,
         activeTrap: null,
         winner: null
     });
-    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [showResult, setShowResult] = useState(false);
     const [diceRolling, setDiceRolling] = useState(false);
     const [playerSetup, setPlayerSetup] = useState({ name: '', playerCount: 2 });
@@ -338,58 +336,10 @@ export const QuizBoardGameMobile: React.FC = () => {
                     }
                     break;
 
-                case 'question':
-                    if (!gameState.currentQuestion) return;
-
-                    setTimeout(() => {
-                        const randomAnswer = Math.floor(Math.random() * 4);
-                        setSelectedAnswer(randomAnswer);
-                        setShowResult(true);
-
-                        const isCorrect = randomAnswer === gameState.currentQuestion!.correctAnswer;
-
-                        setGameState(prev => ({
-                            ...prev,
-                            players: prev.players.map(p =>
-                                p.id === currentPlayer.id
-                                    ? {
-                                        ...p,
-                                        stats: {
-                                            ...p.stats,
-                                            questionsAnswered: p.stats.questionsAnswered + 1,
-                                            correctAnswers: p.stats.correctAnswers + (isCorrect ? 1 : 0)
-                                        }
-                                    }
-                                    : p
-                            )
-                        }));
-
-                        setTimeout(() => {
-                            setShowResult(false);
-                            setSelectedAnswer(null);
-
-                            if (isCorrect && gameState.diceValue) {
-                                const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
-                                setAvailableTiles(availablePositions);
-                                setIsSelectingTile(true);
-                                setGameState(prev => ({
-                                    ...prev,
-                                    phase: 'selecting_tile',
-                                    currentQuestion: null
-                                }));
-                            } else {
-                                setGameState(prev => ({
-                                    ...prev,
-                                    currentQuestion: null,
-                                    phase: 'rolling',
-                                    diceValue: null
-                                }));
-                            }
-                        }, 2500);
-                    }, 2000);
-                    break;
-
                 case 'selecting_tile':
+                    const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
+                    setAvailableTiles(availablePositions);
+                    setIsSelectingTile(true);
                     if (availableTiles.length > 0) {
                         setTimeout(() => {
                             const randomTileIndex = Math.floor(Math.random() * availableTiles.length);
@@ -419,7 +369,7 @@ export const QuizBoardGameMobile: React.FC = () => {
         if (!showResult && !currentReward) {
             handleAIAction();
         }
-    }, [gameState.currentPlayerId, gameState.phase, gameState.currentQuestion, canEndTurn]);
+    }, [gameState.currentPlayerId, gameState.phase, canEndTurn]);
 
     // Initialize game
     const startGame = () => {
@@ -439,8 +389,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                     speed: 10
                 },
                 stats: {
-                    questionsAnswered: 0,
-                    correctAnswers: 0,
                     battlesWon: 0,
                     tilesMovedTotal: 0
                 },
@@ -466,8 +414,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                     speed: 10
                 },
                 stats: {
-                    questionsAnswered: 0,
-                    correctAnswers: 0,
                     battlesWon: 0,
                     tilesMovedTotal: 0
                 },
@@ -492,84 +438,23 @@ export const QuizBoardGameMobile: React.FC = () => {
 
         setDiceRolling(true);
 
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+
         setTimeout(() => {
             const value = Math.floor(Math.random() * 6) + 1;
             setGameState(prev => ({
                 ...prev,
                 diceValue: value,
-                phase: 'question'
+                phase: 'selecting_tile'
             }));
             setDiceRolling(false);
 
             setTimeout(() => {
-                presentQuestion();
+                const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
+                setAvailableTiles(availablePositions);
+                setIsSelectingTile(true);
             }, 500);
         }, 1000);
-    };
-
-    const presentQuestion = () => {
-        const question = generateRandomQuestion();
-        setGameState(prev => ({
-            ...prev,
-            currentQuestion: question,
-            phase: 'question'
-        }));
-        setSelectedAnswer(null);
-        setShowResult(false);
-        setBottomSheetContent('question');
-        setShowBottomSheet(true);
-    };
-
-    // Handle answer submission
-    const handleAnswerSubmit = () => {
-        if (selectedAnswer === null || !gameState.currentQuestion) return;
-
-        setShowResult(true);
-        const isCorrect = selectedAnswer === gameState.currentQuestion.correctAnswer;
-        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
-        if (!currentPlayer) return;
-
-        setGameState(prev => ({
-            ...prev,
-            players: prev.players.map(p =>
-                p.id === currentPlayer.id
-                    ? {
-                        ...p,
-                        stats: {
-                            ...p.stats,
-                            questionsAnswered: p.stats.questionsAnswered + 1,
-                            correctAnswers: p.stats.correctAnswers + (isCorrect ? 1 : 0)
-                        }
-                    }
-                    : p
-            )
-        }));
-
-        setTimeout(() => {
-            setShowResult(false);
-            setSelectedAnswer(null);
-            setShowBottomSheet(false);
-
-            if (isCorrect) {
-                if (gameState.diceValue) {
-                    const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
-                    setAvailableTiles(availablePositions);
-                    setIsSelectingTile(true);
-                    setGameState(prev => ({
-                        ...prev,
-                        phase: 'selecting_tile',
-                        currentQuestion: null
-                    }));
-                }
-            } else {
-                setGameState(prev => ({
-                    ...prev,
-                    currentQuestion: null,
-                    phase: 'rolling',
-                    diceValue: null
-                }));
-            }
-        }, 2000);
     };
 
     // Handle tile selection
@@ -887,7 +772,6 @@ export const QuizBoardGameMobile: React.FC = () => {
     const endTurn = () => {
         setCanEndTurn(false);
         setDiceRolling(false);
-        setSelectedAnswer(null);
         setShowResult(false);
         setAvailableTiles([]);
         setIsSelectingTile(false);
@@ -1235,7 +1119,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                                                 board: [],
                                                 phase: 'rolling',
                                                 diceValue: null,
-                                                currentQuestion: null,
                                                 currentBattle: null,
                                                 activeTrap: null,
                                                 winner: null
@@ -1281,68 +1164,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                         />
                     </div>
                 </div>
-
-                {/* Question Bottom Sheet */}
-                {gameState.phase === 'question' && gameState.currentQuestion && (
-                    <BottomSheet
-                        isOpen={showBottomSheet}
-                        onClose={() => {}}
-                        title={gameState.currentQuestion.category}
-                    >
-                        <div className="space-y-4">
-                            <h4 className="text-xl font-semibold text-gray-900">
-                                {gameState.currentQuestion.question}
-                            </h4>
-                            <div className="space-y-3">
-                                {gameState.currentQuestion.options.map((option, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => isPlayerTurn && setSelectedAnswer(index)}
-                                        disabled={showResult || !isPlayerTurn}
-                                        className={`w-full p-4 rounded-2xl border-2 transition-all duration-200 text-left
-                                            ${selectedAnswer === index
-                                            ? showResult
-                                                ? index === gameState.currentQuestion!.correctAnswer
-                                                    ? 'border-green-500 bg-green-50'
-                                                    : 'border-red-500 bg-red-50'
-                                                : 'border-purple-500 bg-purple-50'
-                                            : 'border-gray-200 hover:border-gray-300 active:bg-gray-50'
-                                        } ${!isPlayerTurn ? 'opacity-50' : ''}`}
-                                    >
-                                        <span className="font-medium text-gray-800">{option}</span>
-                                        {showResult && index === gameState.currentQuestion!.correctAnswer && (
-                                            <span className="float-right text-green-600 font-bold">✓</span>
-                                        )}
-                                        {showResult && selectedAnswer === index && index !== gameState.currentQuestion!.correctAnswer && (
-                                            <span className="float-right text-red-600 font-bold">✗</span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                            {selectedAnswer !== null && !showResult && isPlayerTurn && (
-                                <button
-                                    onClick={handleAnswerSubmit}
-                                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                                >
-                                    Submit Answer
-                                </button>
-                            )}
-                            {showResult && (
-                                <div className={`p-4 rounded-2xl ${
-                                    selectedAnswer === gameState.currentQuestion!.correctAnswer
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-red-100 text-red-800'
-                                }`}>
-                                    <p className="font-semibold text-center">
-                                        {selectedAnswer === gameState.currentQuestion!.correctAnswer
-                                            ? '🎉 Correct! You can now move!'
-                                            : '😔 Incorrect. Better luck next time!'}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </BottomSheet>
-                )}
 
                 {/* Battle Bottom Sheet */}
                 {gameState.phase === 'battle' && gameState.currentBattle && (
@@ -1486,14 +1307,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                                 <p className="text-sm text-gray-600">Final Stats</p>
                                 <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
                                     <div>
-                                        <span className="text-gray-600">Questions:</span>
-                                        <span className="font-bold ml-1">{gameState.winner.stats.questionsAnswered}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-600">Correct:</span>
-                                        <span className="font-bold ml-1">{gameState.winner.stats.correctAnswers}</span>
-                                    </div>
-                                    <div>
                                         <span className="text-gray-600">Battles Won:</span>
                                         <span className="font-bold ml-1">{gameState.winner.stats.battlesWon}</span>
                                     </div>
@@ -1513,7 +1326,6 @@ export const QuizBoardGameMobile: React.FC = () => {
                                         board: [],
                                         phase: 'rolling',
                                         diceValue: null,
-                                        currentQuestion: null,
                                         currentBattle: null,
                                         activeTrap: null,
                                         winner: null

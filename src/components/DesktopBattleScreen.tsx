@@ -1,5 +1,3 @@
-// src/components/DesktopBattleScreen.tsx
-
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
 import { BattleState, DiceRoll } from '../types/game.types';
@@ -190,12 +188,21 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                         color="bg-gradient-to-r from-blue-500 to-blue-600"
                     />
                 </div>
+            </div>
 
                 {/* Enemy Section */}
                 <div className="bg-red-50 rounded-lg p-6">
                     <div className="flex items-center mb-4">
-                        <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl flex items-center justify-center mr-4">
-                            <Skull size={40} className="text-white" />
+                        <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl flex items-center justify-center mr-4 overflow-hidden">
+                            {battleState.enemy.image ? (
+                                <img
+                                    src={battleState.enemy.image}
+                                    alt={battleState.enemy.name}
+                                    className="w-full h-full object-cover rounded-2xl"
+                                />
+                            ) : (
+                                <Skull size={40} className="text-white" />
+                            )}
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold text-red-800">{battleState.enemy.name}</h3>
@@ -214,7 +221,6 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                         color="bg-gradient-to-r from-red-500 to-red-600"
                     />
                 </div>
-            </div>
 
             {/* Dice Roll Section */}
             <div className="text-center mb-8">
@@ -224,6 +230,16 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                             roll={rolling ? null : latestRound.playerRoll}
                             rolling={rolling}
                         />
+                    </div>
+                )}
+
+                {battleState.phase === 'enemy_attack' && (
+                    <div className="text-center mb-8">
+                        <div className="bg-red-100 border-2 border-red-500 rounded-lg px-8 py-4 inline-block animate-pulse">
+                            <span className="text-2xl font-bold text-red-600">
+                                {battleState.enemy.name} is attacking...
+                            </span>
+                        </div>
                     </div>
                 )}
 

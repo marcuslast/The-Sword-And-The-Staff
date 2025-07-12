@@ -24,9 +24,8 @@ export const createGameBoard = (): Tile[] => {
             else if (isPath && tileIndex > 0) {
                 // Randomly distribute special tiles
                 const rand = Math.random();
-                if (rand < 0.2) type = 'battle';
-                else if (rand < 0.3) type = 'bonus';
-                else if (rand < 0.35) type = 'trap';
+                if (rand <= 0.4) type = 'battle';
+                else if (rand > 0.85 && rand < 0.99 ) type = 'bonus';
             }
 
             const tile: Tile = {
@@ -90,8 +89,6 @@ export const generateRandomItem = (rarity?: keyof typeof RARITIES): Item => {
 // Calculate available tiles based on dice roll
 export const getAvailableTiles = (currentPosition: number, diceValue: number, board: Tile[]): number[] => {
     const pathTiles = board.filter(t => t.isPath).sort((a, b) => {
-        // Sort path tiles by their order (you might need to adjust this based on your path generation)
-        // For now, let's sort by a combination of y (top to bottom) and x (left to right)
         if (a.y === b.y) return a.x - b.x;
         return b.y - a.y; // Reverse y to go from bottom to top
     });
