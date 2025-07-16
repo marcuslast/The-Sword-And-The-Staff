@@ -24,7 +24,7 @@ export const useGameLogic = () => {
         diceValue: null,
         currentBattle: null,
         activeTrap: null,
-        winner: null
+        winner: null,
     });
     const [diceRolling, setDiceRolling] = useState(false);
     const [playerSetup, setPlayerSetup] = useState({ name: '', playerCount: 2 });
@@ -70,6 +70,8 @@ export const useGameLogic = () => {
                 const playerWon = battle.phase === 'victory';
 
                 if (playerWon && battle.enemy.reward) {
+                    const totalGold = battle.enemy.goldReward || 10;
+
                     // Player wins - gets reward and updates health from battle
                     setGameState(prev => ({
                         ...prev,
@@ -79,9 +81,12 @@ export const useGameLogic = () => {
                                     ...p,
                                     health: battle.playerHealth, // Keep the health from battle
                                     inventory: [...p.inventory, battle.enemy.reward],
+                                    gold: p.gold + totalGold,
+                                    lastGoldWin: totalGold,
                                     stats: {
                                         ...p.stats,
-                                        battlesWon: p.stats.battlesWon + 1
+                                        battlesWon: p.stats.battlesWon + 1,
+                                        goldCollected: p.stats.goldCollected + totalGold
                                     }
                                 }
                                 : p
@@ -222,10 +227,14 @@ export const useGameLogic = () => {
                 },
                 stats: {
                     battlesWon: 0,
-                    tilesMovedTotal: 0
+                    tilesMovedTotal: 0,
+                    goldCollected: 0
                 },
                 color: PLAYER_COLORS[0],
-                isActive: true
+                isActive: true,
+                isAI: false,
+                gold: 0,
+                lastGoldWin: 0
             }
         ];
 
@@ -246,10 +255,14 @@ export const useGameLogic = () => {
                 },
                 stats: {
                     battlesWon: 0,
-                    tilesMovedTotal: 0
+                    tilesMovedTotal: 0,
+                    goldCollected: 0
                 },
                 color: PLAYER_COLORS[i],
-                isActive: true
+                isAI: true,
+                isActive: true,
+                gold: 0,
+                lastGoldWin: 0
             });
         }
 
@@ -265,6 +278,24 @@ export const useGameLogic = () => {
 
     const handlePlayerDefeat = (playerId: string) => {
         setGameState(prev => {
+            const defeatedPlayer = prev.players.find(p => p.id === playerId);
+            if (!defeatedPlayer) return prev;
+
+            // Collect the defeated player's inventory and gold
+            const lootedItems = [...defeatedPlayer.inventory];
+            const lootedGold = defeatedPlayer.gold;
+
+            // Find the hoard tile and add the items
+            const updatedBoard = prev.board.map(tile => {
+                if (tile.type === 'hoard') {
+                    return {
+                        ...tile,
+                        hoardItems: [...(tile.hoardItems || []), ...lootedItems]
+                    };
+                }
+                return tile;
+            });
+
             const updatedPlayers = prev.players.map(p => {
                 if (p.id === playerId) {
                     const maxHealth = calculateTotalStats({
@@ -279,6 +310,7 @@ export const useGameLogic = () => {
                         maxHealth: maxHealth, // Update max health in case equipment changed it
                         inventory: [],
                         equipped: {},
+                        gold: 0, // Reset gold to 0
                     };
                 }
                 return p;
@@ -287,7 +319,7 @@ export const useGameLogic = () => {
             return {
                 ...prev,
                 players: updatedPlayers,
-                board: [...prev.board] // Force board update
+                board: updatedBoard
             };
         });
     };
@@ -608,6 +640,26 @@ export const useGameLogic = () => {
         completeBattle(result.playerWon, gameState.currentBattle);
     };
 
+    const handleHeal = () => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer || currentPlayer.id !== '1') return; // Only human player can heal
+
+        const healAmount = Math.floor(currentPlayer.maxHealth * 0.33); // Heal 33% of max health
+        const newHealth = Math.min(currentPlayer.maxHealth, currentPlayer.health + healAmount);
+
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p =>
+                p.id === currentPlayer.id
+                    ? { ...p, health: newHealth }
+                    : p
+            ),
+            phase: 'finishing'
+        }));
+
+        setCanEndTurn(true);
+    };
+
     return {
         // State
         gameMode,
@@ -634,6 +686,7 @@ export const useGameLogic = () => {
         handleEquipItem,
         handleUnequipItem,
         handleRewardDismiss,
+        handleHeal,
 
         // Battle logic
         battleLogic,

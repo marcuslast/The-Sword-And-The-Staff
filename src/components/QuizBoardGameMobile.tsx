@@ -307,6 +307,7 @@ export const QuizBoardGameMobile: React.FC = () => {
     const [availableTiles, setAvailableTiles] = useState<number[]>([]);
     const [isSelectingTile, setIsSelectingTile] = useState(false);
     const [currentReward, setCurrentReward] = useState<Item | null>(null);
+    const [goldReward, setGoldReward] = useState<number | null>(null);
     const [canEndTurn, setCanEndTurn] = useState(false);
 
     // Mobile-specific state
@@ -390,10 +391,14 @@ export const QuizBoardGameMobile: React.FC = () => {
                 },
                 stats: {
                     battlesWon: 0,
-                    tilesMovedTotal: 0
+                    tilesMovedTotal: 0,
+                    goldCollected: 0
                 },
                 color: PLAYER_COLORS[0],
-                isActive: true
+                isActive: true,
+                isAI: false,
+                gold: 0,
+                lastGoldWin: 0
             }
         ];
 
@@ -415,10 +420,14 @@ export const QuizBoardGameMobile: React.FC = () => {
                 },
                 stats: {
                     battlesWon: 0,
-                    tilesMovedTotal: 0
+                    tilesMovedTotal: 0,
+                    goldCollected: 0
                 },
                 color: PLAYER_COLORS[i],
-                isActive: true
+                isActive: true,
+                isAI: true,
+                gold: 0,
+                lastGoldWin: 0,
             });
         }
 
@@ -557,6 +566,7 @@ export const QuizBoardGameMobile: React.FC = () => {
 
         if (playerWins) {
             giveItemToPlayer(battle.enemy.reward);
+            setGoldReward(battle.enemy.goldReward)
             setGameState(prev => ({
                 ...prev,
                 players: prev.players.map(p =>
@@ -661,7 +671,9 @@ export const QuizBoardGameMobile: React.FC = () => {
             ...prev,
             players: prev.players.map((p: { id: string; inventory: any; }) =>
                 p.id === currentPlayer.id
-                    ? { ...p, inventory: [...p.inventory, item] }
+                    ? { ...p,
+                        inventory: [...p.inventory, item],
+                    }
                     : p
             ),
             phase: 'reward'

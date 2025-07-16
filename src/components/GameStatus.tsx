@@ -8,6 +8,7 @@ interface GameStatusProps {
     onRollDice: () => void;
     isSelectingTile: boolean;
     availableTiles: number[];
+    onHeal?: () => void;
 }
 
 const GameStatus: React.FC<GameStatusProps> = ({
@@ -15,7 +16,7 @@ const GameStatus: React.FC<GameStatusProps> = ({
                                                    diceRolling,
                                                    onRollDice,
                                                    isSelectingTile,
-                                                   availableTiles
+                                                   availableTiles,
                                                }) => {
     const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
 
@@ -86,7 +87,6 @@ const GameStatus: React.FC<GameStatusProps> = ({
                     <div>Position: {currentPlayer.position}</div>
                     <div>Health: {currentPlayer.health}/{currentPlayer.maxHealth}</div>
                     <div>Items: {currentPlayer.inventory.length}</div>
-                    <div>Battles Won: {currentPlayer.stats.battlesWon}</div>
                 </div>
             </div>
         </div>

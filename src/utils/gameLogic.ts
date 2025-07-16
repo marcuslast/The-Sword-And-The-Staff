@@ -21,6 +21,7 @@ export const createGameBoard = (): Tile[] => {
             let type: Tile['type'] = 'normal';
             if (tileIndex === 0) type = 'start';
             else if (tileIndex === path.length - 1) type = 'castle';
+            else if (isPath && tileIndex === Math.floor(path.length * 0.6)) type = 'hoard'; // Place hoard at 60% of the path
             else if (isPath && tileIndex > 0) {
                 // Randomly distribute special tiles
                 const rand = Math.random();
@@ -29,6 +30,7 @@ export const createGameBoard = (): Tile[] => {
             }
 
             const tile: Tile = {
+                hoardItems: [],
                 id: y * BOARD_WIDTH + x,
                 type,
                 x,

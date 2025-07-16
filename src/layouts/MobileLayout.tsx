@@ -161,6 +161,16 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                         <Dices className="inline mr-2" size={20} />
                         {props.diceRolling ? 'Rolling...' : 'Roll Dice'}
                     </button>
+
+                    {currentPlayer.health < currentPlayer.maxHealth && (
+                        <button
+                            onClick={props.handleHeal}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                        >
+                            ❤️ Heal 33%
+                        </button>
+                    )}
+
                     {gameState.diceValue && (
                         <div className="mt-2 text-2xl font-bold text-blue-600">
                             🎲 {gameState.diceValue}
@@ -216,6 +226,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
         <div className="space-y-4">
             <div className="bg-white rounded-lg p-4 shadow-lg">
                 <h3 className="font-bold text-gray-800 mb-4">Inventory</h3>
+                <button>
+                    Sell
+                </button>
                 {humanPlayer?.inventory.length ? (
                     <div className="grid grid-cols-2 gap-3">
                         {humanPlayer.inventory.map((item, index) => {
@@ -315,6 +328,10 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                             <span className="font-bold">{humanPlayer?.baseStats.speed}</span>
                         </div>
                     </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Gold</span>
+                        <span className="font-bold">💰 {humanPlayer.gold}</span>
+                    </div>
                 </div>
             </div>
 
@@ -376,6 +393,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 <RewardDisplay
                     item={props.currentReward}
                     onClose={handleRewardClose}
+                    gold={gameState.players.find(p => p.id === gameState.currentPlayerId)?.lastGoldWin}
+                    isAI={currentPlayer?.id !== '1'} // true for AI, false for human
                 />
 
                 {/* Main Content */}

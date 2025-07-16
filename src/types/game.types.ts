@@ -15,6 +15,7 @@ export interface Item {
     stats: number;
     icon: string;
     effect?: string;
+    value: number;
 }
 
 export interface Trap {
@@ -32,11 +33,13 @@ export interface Enemy {
     power: number;
     reward: Item;
     image: string;
+    goldReward: number;
 }
 
 export interface Tile {
+    hoardItems: any[];
     id: number;
-    type: 'normal' | 'battle' | 'trap' | 'bonus' | 'castle' | 'start';
+    type: 'normal' | 'battle' | 'trap' | 'bonus' | 'castle' | 'start' | 'hoard';
     x: number;
     y: number;
     enemy?: Enemy;
@@ -116,9 +119,13 @@ export interface Player {
     stats: {
         battlesWon: number;
         tilesMovedTotal: number;
+        goldCollected: number;
     };
     color: string;
     isActive: boolean;
+    isAI: boolean;
+    gold: number;
+    lastGoldWin: number | null;
 }
 
 export type ItemSlot = 'weapon' | 'armor' | 'helmet' | 'shield' | 'gloves' | 'boots' | 'cloak' | 'accessory';

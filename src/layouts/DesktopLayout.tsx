@@ -131,7 +131,12 @@ const QuestionComponent: React.FC<{
 };
 
 // Reward Display Component
-const RewardDisplay: React.FC<{ item: Item | null; onClose: () => void }> = ({ item, onClose }) => {
+const RewardDisplay: React.FC<{
+    item: Item | null;
+    onClose: () => void;
+    gold?: number;
+    isAI?: boolean;
+}> = ({ item, onClose }) => {
     if (!item) return null;
 
     const rarityConfig = RARITIES[item.rarity];
@@ -289,7 +294,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-8">
                 <div className="text-center">
-                    <h1 className="text-6xl font-bold text-white mb-8">Quiz Board Game</h1>
+                    <h1 className="text-6xl font-bold text-white mb-8">The Sword and The Staff</h1>
                     <button
                         onClick={() => props.setGameMode('setup')}
                         className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-lg text-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105"
@@ -362,6 +367,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                             onRollDice={props.rollDice}
                             isSelectingTile={props.isSelectingTile}
                             availableTiles={props.availableTiles}
+                            onHeal={props.handleHeal}
                         />
 
                         <EquipmentPanel
@@ -396,6 +402,8 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                 <RewardDisplay
                     item={props.currentReward}
                     onClose={() => props.setCurrentReward(null)}
+                    gold={gameState.players.find(p => p.id === gameState.currentPlayerId)?.lastGoldWin}
+                    isAI={currentPlayer?.id !== '1'}
                 />
             </div>
         </div>
