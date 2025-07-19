@@ -27,17 +27,6 @@ const MobileGameBoard: React.FC<MobileGameBoardProps> = ({
     const [scale, setScale] = useState(1);
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
-    // Debug logging
-    console.log('MobileGameBoard render:', {
-        originalBoardLength: board.length,
-        playersLength: players.length,
-        currentPlayerId,
-        availableTiles,
-        isSelectingTile,
-        pathTilesCount: board.filter(t => t.isPath).length,
-        firstFewTiles: board.slice(0, 5).map(t => ({ id: t.id, type: t.type, isPath: t.isPath, x: t.x, y: t.y }))
-    });
-
     if (!board.length) {
         return (
             <div className="relative w-full h-full overflow-hidden bg-gray-900 rounded-3xl shadow-2xl flex items-center justify-center">

@@ -39,7 +39,7 @@ export interface Enemy {
 export interface Tile {
     hoardItems: any[];
     id: number;
-    type: 'normal' | 'battle' | 'trap' | 'bonus' | 'castle' | 'start' | 'hoard';
+    type: 'normal' | 'battle' | 'trap' | 'bonus' | 'castle' | 'start' | 'hoard' | 'shop';
     x: number;
     y: number;
     enemy?: Enemy;

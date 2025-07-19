@@ -660,6 +660,32 @@ export const useGameLogic = () => {
         setCanEndTurn(true);
     };
 
+    const handleUseItem = (item: Item) => {
+        if (!gameState.currentBattle) return;
+
+        const newBattleState = battleLogic.playerUseItem(gameState.currentBattle, item);
+
+        // Remove the used item from inventory if it's consumable
+        const shouldRemoveItem = ['potion', 'consumable'].includes(item.type);
+
+        setGameState(prev => ({
+            ...prev,
+            currentBattle: newBattleState,
+            players: prev.players.map(p => {
+                if (p.id === prev.currentPlayerId) {
+                    return {
+                        ...p,
+                        inventory: shouldRemoveItem
+                            ? p.inventory.filter(i => i.id !== item.id)
+                            : p.inventory,
+                        health: newBattleState.playerHealth // Update health if changed
+                    };
+                }
+                return p;
+            })
+        }));
+    };
+
     return {
         // State
         gameMode,

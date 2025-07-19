@@ -1,4 +1,4 @@
-import { BattleState, Enemy, Player, BattleRound } from '../types/game.types';
+import {BattleState, Enemy, Player, BattleRound, Item} from '../types/game.types';
 import {
     rollDice,
     calculateAttackModifier,
@@ -169,11 +169,57 @@ export const useBattleLogic = () => {
         };
     };
 
+    const playerUseItem = (state: BattleState, item: Item): BattleState => {
+        let newState = { ...state };
+        let description = `Used ${item.name}`;
+
+        // Handle different item types
+        switch (item.type) {
+            case 'potion':
+                const healAmount = item.stats;
+                newState.playerHealth = Math.min(
+                    newState.playerMaxHealth,
+                    newState.playerHealth + healAmount
+                );
+                description += `, healing for ${healAmount} HP!`;
+                break;
+
+            case 'consumable':
+                // Apply temporary buffs
+                description += `, gaining temporary power!`;
+                break;
+
+            case 'mythic':
+                // Apply powerful effects
+                description += `, unleashing ${item.effect || 'mythic power'}!`;
+                break;
+
+            default:
+                description += `, but it had no effect in battle.`;
+                break;
+        }
+
+        const round: BattleRound = {
+            playerRoll: rollDice('d20'),
+            enemyRoll: rollDice('d20'),
+            isPlayerTurn: true,
+            description
+        };
+
+        newState.rounds = [...newState.rounds, round];
+        newState.currentRound++;
+        newState.phase = 'enemy_attack';
+        newState.isPlayerTurn = false;
+
+        return newState;
+    };
+
     return {
         initiateBattle,
         playerAttack,
         playerDefend,
         enemyAttack,
-        resolveBattle
+        resolveBattle,
+        playerUseItem
     };
 };

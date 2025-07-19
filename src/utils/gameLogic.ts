@@ -1,8 +1,5 @@
-import { Tile, Player, Item, Enemy, Trap } from '../types/game.types';
-import {
-    ITEM_POOL,
-    ENEMIES,
-    RARITIES } from './gameData';
+import { Tile, Player, Item, Enemy } from '../types/game.types';
+import { ITEM_POOL, ENEMIES, RARITIES } from './gameData';
 import { generateRandomPath, BOARD_WIDTH, BOARD_HEIGHT } from './pathGeneration';
 
 const MIN_PATH_LENGTH = 35;
@@ -11,6 +8,8 @@ const MIN_PATH_LENGTH = 35;
 export const createGameBoard = (): Tile[] => {
     const tiles: Tile[] = [];
     const path = generateRandomPath();
+    let hasShop = false;
+    let shopPosition = Math.floor(path.length * 0.3 + Math.random() * path.length * 0.4); // Between 30%-70% of path
 
     // Create all tiles
     for (let y = 0; y < BOARD_HEIGHT; y++) {
@@ -21,12 +20,22 @@ export const createGameBoard = (): Tile[] => {
             let type: Tile['type'] = 'normal';
             if (tileIndex === 0) type = 'start';
             else if (tileIndex === path.length - 1) type = 'castle';
-            else if (isPath && tileIndex === Math.floor(path.length * 0.6)) type = 'hoard'; // Place hoard at 60% of the path
+            else if (isPath && tileIndex === Math.floor(path.length * 0.6)) type = 'hoard';
             else if (isPath && tileIndex > 0) {
                 // Randomly distribute special tiles
                 const rand = Math.random();
-                if (rand <= 0.4) type = 'battle';
-                else if (rand > 0.85 && rand < 0.99 ) type = 'bonus';
+                if (rand <= 0.35) type = 'battle';
+                else if (rand > 0.85 && rand < 0.95) type = 'bonus';
+                else if (rand >= 0.95) {
+                    type = 'shop';
+                    hasShop = true;
+                }
+            }
+
+            // Force at least one shop if none was randomly placed
+            if (isPath && tileIndex === shopPosition && !hasShop) {
+                type = 'shop';
+                hasShop = true;
             }
 
             const tile: Tile = {
@@ -53,6 +62,18 @@ export const createGameBoard = (): Tile[] => {
                         ...rewardItem
                     }
                 };
+            }
+
+            // Add items to shop tiles
+            if (type === 'shop') {
+                tile.hoardItems = [
+                    generateRandomItem('common'),
+                    generateRandomItem('uncommon'),
+                    generateRandomItem('rare')
+                ].map(item => ({
+                    ...item,
+                    value: Math.floor(item.value * 1.5) // Shops charge more
+                }));
             }
 
             tiles.push(tile);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
-import {BattleState, DiceRoll, Player} from '../types/game.types';
+import {BattleState, DiceRoll, Player, Item } from '../types/game.types';
 import { getDiceIcon } from '../utils/diceUtils';
 
 interface DesktopBattleScreenProps {
@@ -10,7 +10,46 @@ interface DesktopBattleScreenProps {
     onContinue: () => void;
     isPlayerTurn: boolean;
     currentPlayer: Player;
+    onUseItem: (item: Item) => void;
+    availableItems: Item[];
 }
+
+const ItemSelectionModal: React.FC<{
+    items: Item[];
+    onSelect: (item: Item) => void;
+    onClose: () => void;
+}> = ({ items, onSelect, onClose }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Select Item to Use</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+                {items.map(item => (
+                    <button
+                        key={item.id}
+                        onClick={() => onSelect(item)}
+                        className="w-full p-3 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-between"
+                    >
+                        <div className="flex items-center">
+                            <span className="font-medium">{item.name}</span>
+                            <span className="text-xs ml-2 px-2 py-1 bg-gray-300 rounded">
+                                {item.type}
+                            </span>
+                        </div>
+                        {item.type === 'potion' && (
+                            <span className="text-green-600">+{item.stats} HP</span>
+                        )}
+                    </button>
+                ))}
+            </div>
+            <button
+                onClick={onClose}
+                className="mt-4 w-full bg-gray-500 text-white py-2 rounded-lg"
+            >
+                Cancel
+            </button>
+        </div>
+    </div>
+);
 
 // Animated Dice Component
 const AnimatedDice: React.FC<{
@@ -99,15 +138,18 @@ const HealthBar: React.FC<{
 };
 
 const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
-                                                                     battleState,
-                                                                     onAttack,
-                                                                     onDefend,
-                                                                     onContinue,
-                                                                     isPlayerTurn,
-                                                                     currentPlayer
-                                                                 }) => {
+    battleState,
+    onAttack,
+    onDefend,
+    onContinue,
+    isPlayerTurn,
+    currentPlayer,
+    availableItems,
+    onUseItem}) => {
+
     const [rolling, setRolling] = useState(false);
     const [showEffects, setShowEffects] = useState(false);
+    const [showItemModal, setShowItemModal] = useState(false);
 
     const latestRound = battleState.rounds[battleState.rounds.length - 1];
 
@@ -281,8 +323,30 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                         <Shield size={24} />
                         <span className="text-xl">Defend</span>
                     </button>
+                    <button
+                        onClick={() => setShowItemModal(true)}
+                        disabled={availableItems.length === 0}
+                        className={`bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-3 ${
+                            availableItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                    >
+                        <Heart size={24} />
+                        <span className="text-xl">Item ({availableItems.length})</span>
+                    </button>
                 </div>
             )}
+
+            {showItemModal && (
+                <ItemSelectionModal
+                    items={availableItems}
+                    onSelect={(item) => {
+                        onUseItem(item);
+                        setShowItemModal(false);
+                    }}
+                    onClose={() => setShowItemModal(false)}
+                />
+            )}
+
 
             {/* Combat Log */}
             <div className="bg-gray-100 rounded-lg p-6">

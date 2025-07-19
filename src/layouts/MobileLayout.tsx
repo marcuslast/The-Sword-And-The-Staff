@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useGameLogic } from '../hooks/useGameLogic';
 import MobileGameBoard from '../components/MobileGameBoard';
 import RewardDisplay from '../components/RewardDisplay';
@@ -44,6 +44,18 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
         // Use the handleRewardDismiss function from props
         props.handleRewardDismiss();
     };
+
+    const battleScreenRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to battle screen when battle phase begins
+    useEffect(() => {
+        if (gameState.phase === 'battle' && battleScreenRef.current) {
+            battleScreenRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }
+    }, [gameState.phase]);
 
     if (gameMode === 'menu') {
         return (
@@ -115,6 +127,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
 
     const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
     const humanPlayer = gameState.players.find(p => p.id === '1');
+    const availableItems = currentPlayer.inventory.filter(item =>
+        ['potion', 'consumable', 'mythic'].includes(item.type)
+    );
 
     // Game Screen Content
     const GameContent = () => (
@@ -181,29 +196,54 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
 
             {/* Battle Section */}
             {gameState.phase === 'battle' && gameState.currentBattle && (
-                <MobileBattleScreen
-                    battleState={gameState.currentBattle}
-                    onAttack={() => {
-                        if (gameState.currentBattle) {
-                            const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
-                            props.updateBattleState(newBattleState);
-                        }
-                    }}
-                    onDefend={() => {
-                        if (gameState.currentBattle) {
-                            const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
-                            props.updateBattleState(newBattleState);
-                        }
-                    }}
-                    onContinue={() => {
-                        if (gameState.currentBattle) {
-                            const result = battleLogic.resolveBattle(gameState.currentBattle);
-                            props.completeBattle(result.playerWon, gameState.currentBattle);
-                        }
-                    }}
-                    isPlayerTurn={currentPlayer?.id === '1'}
-                    currentPlayer={currentPlayer}
-                />
+                <div ref={battleScreenRef}>
+                    <MobileBattleScreen
+                        battleState={gameState.currentBattle}
+                        onAttack={() => {
+                            if (gameState.currentBattle) {
+                                const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
+                                props.updateBattleState(newBattleState);
+                            }
+                        }}
+                        onDefend={() => {
+                            if (gameState.currentBattle) {
+                                const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
+                                props.updateBattleState(newBattleState);
+                            }
+                        }}
+                        onContinue={() => {
+                            if (gameState.currentBattle) {
+                                const result = battleLogic.resolveBattle(gameState.currentBattle);
+                                props.completeBattle(result.playerWon, gameState.currentBattle);
+                            }
+                        }}
+                        isPlayerTurn={currentPlayer?.id === '1'}
+                        currentPlayer={currentPlayer}
+                        availableItems={availableItems}
+                        onUseItem={(item) => {
+                            if (gameState.currentBattle) {
+                                const newBattleState = battleLogic.playerUseItem(gameState.currentBattle, item);
+                                props.updateBattleState(newBattleState);
+
+                                // Remove the item from inventory if it's consumable
+                                if (['potion', 'consumable'].includes(item.type)) {
+                                    props.setGameState(prev => ({
+                                        ...prev,
+                                        players: prev.players.map(p => {
+                                            if (p.id === gameState.currentPlayerId) {
+                                                return {
+                                                    ...p,
+                                                    inventory: p.inventory.filter(i => i.id !== item.id)
+                                                };
+                                            }
+                                            return p;
+                                        })
+                                    }));
+                                }
+                            }
+                        }}
+                    />
+                </div>
             )}
 
             {/* End Turn Button */}
