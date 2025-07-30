@@ -109,28 +109,30 @@ export const generateRandomItem = (rarity?: keyof typeof RARITIES): Item => {
     };
 };
 
-// Calculate available tiles based on dice roll
+// FIXED: Calculate available tiles based on consecutive path movement only
 export const getAvailableTiles = (currentPosition: number, diceValue: number, board: Tile[]): number[] => {
-    const pathTiles = board.filter(t => t.isPath).sort((a, b) => {
-        if (a.y === b.y) return a.x - b.x;
-        return b.y - a.y; // Reverse y to go from bottom to top
-    });
-
+    const pathTiles = getOrderedPathTiles(board);
     const availablePositions: number[] = [];
 
     console.log('Current position:', currentPosition, 'Dice value:', diceValue);
     console.log('Path tiles length:', pathTiles.length);
 
-    // Player can move anywhere from 1 to diceValue spaces forward
-    for (let i = 1; i <= diceValue; i++) {
-        const newPosition = currentPosition + i;
+    // CRITICAL FIX: Only allow consecutive forward movement along the path
+    // Player can move 1, 2, 3, ... up to diceValue spaces forward CONSECUTIVELY
+    for (let steps = 1; steps <= diceValue; steps++) {
+        const newPosition = currentPosition + steps;
+
+        // Check if the new position exists on the path
         if (newPosition < pathTiles.length) {
             availablePositions.push(newPosition);
-            console.log('Available position:', newPosition, 'Tile:', pathTiles[newPosition]);
+            console.log('Available consecutive position:', newPosition, 'Tile:', pathTiles[newPosition]);
+        } else {
+            // Can't go beyond the end of the path
+            break;
         }
     }
 
-    console.log('Available positions:', availablePositions);
+    console.log('Available consecutive positions:', availablePositions);
     return availablePositions;
 };
 
@@ -141,4 +143,63 @@ export const getOrderedPathTiles = (board: Tile[]): Tile[] => {
         if (a.y === b.y) return a.x - b.x;
         return b.y - a.y;
     });
+};
+
+// Additional helper function to validate a move
+export const isValidMove = (fromPosition: number, toPosition: number, diceValue: number, board: Tile[]): boolean => {
+    const pathTiles = getOrderedPathTiles(board);
+
+    // Check if both positions exist on the path
+    if (fromPosition < 0 || fromPosition >= pathTiles.length ||
+        toPosition < 0 || toPosition >= pathTiles.length) {
+        return false;
+    }
+
+    // Check if it's forward movement only
+    if (toPosition <= fromPosition) {
+        return false;
+    }
+
+    // Check if the movement is within dice range and consecutive
+    const steps = toPosition - fromPosition;
+    if (steps < 1 || steps > diceValue) {
+        return false;
+    }
+
+    // All checks passed - this is a valid consecutive move
+    return true;
+};
+
+// Enhanced tile selection validation
+export const validateTileSelection = (
+    currentPosition: number,
+    selectedPosition: number,
+    diceValue: number,
+    board: Tile[]
+): { valid: boolean; reason?: string } => {
+    const pathTiles = getOrderedPathTiles(board);
+
+    // Basic boundary checks
+    if (selectedPosition < 0 || selectedPosition >= pathTiles.length) {
+        return { valid: false, reason: 'Selected position is out of bounds' };
+    }
+
+    // Can't move backwards or stay in place
+    if (selectedPosition <= currentPosition) {
+        return { valid: false, reason: 'Can only move forward on the path' };
+    }
+
+    // Must be within dice roll range
+    const steps = selectedPosition - currentPosition;
+    if (steps > diceValue) {
+        return { valid: false, reason: `Can only move ${diceValue} steps, but selected tile is ${steps} steps away` };
+    }
+
+    // Must be consecutive movement (no skipping path segments)
+    const availableTiles = getAvailableTiles(currentPosition, diceValue, board);
+    if (!availableTiles.includes(selectedPosition)) {
+        return { valid: false, reason: 'Must follow the path consecutively - cannot skip tiles' };
+    }
+
+    return { valid: true };
 };

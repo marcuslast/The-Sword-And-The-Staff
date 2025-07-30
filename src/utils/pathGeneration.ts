@@ -1,14 +1,13 @@
 // Constants
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 8;
-export const MIN_PATH_LENGTH = 35;
-export const MAX_PATH_LENGTH = 45;
+export const MIN_PATH_LENGTH = 25;
+export const MAX_PATH_LENGTH = 35;
 
-// pathGeneration.ts
 export const generateRandomPath = (): [number, number][] => {
     const path: [number, number][] = [];
     const visited = new Set<string>();
-    const directions = [
+    const directions: [number, number][] = [
         [1, 0],  // right
         [0, -1], // up
         [-1, 0], // left
@@ -21,141 +20,205 @@ export const generateRandomPath = (): [number, number][] => {
     path.push([x, y]);
     visited.add(`${x},${y}`);
 
-    let pathLength = 0;
     const targetLength = MIN_PATH_LENGTH + Math.floor(Math.random() * (MAX_PATH_LENGTH - MIN_PATH_LENGTH));
 
-    while (pathLength < targetLength) {
-        // Shuffle directions for randomness
-        const shuffledDirections = [...directions].sort(() => Math.random() - 0.5);
-        let moved = false;
+    while (path.length < targetLength) {
+        // Get possible directions with preference for forward progression
+        const possibleMoves = getPossibleMoves(x, y, path, visited, directions);
 
-        for (const [dx, dy] of shuffledDirections) {
-            const newX = x + dx;
-            const newY = y + dy;
-            const key = `${newX},${newY}`;
-
-            // Check boundaries and if already visited
-            if (newX >= 0 && newX < BOARD_WIDTH &&
-                newY >= 0 && newY < BOARD_HEIGHT &&
-                !visited.has(key)) {
-
-                // Prevent creating small loops
-                let valid = true;
-                for (const [ndx, ndy] of directions) {
-                    const neighborX = newX + ndx;
-                    const neighborY = newY + ndy;
-                    if (neighborX !== x || neighborY !== y) {
-                        const neighborKey = `${neighborX},${neighborY}`;
-                        if (visited.has(neighborKey)) {
-                            valid = false;
-                            break;
-                        }
+        if (possibleMoves.length === 0) {
+            // If stuck, try backtracking
+            if (path.length > 3) {
+                const backtrackSteps = Math.min(3, path.length - 1);
+                for (let i = 0; i < backtrackSteps; i++) {
+                    const removed = path.pop();
+                    if (removed) {
+                        visited.delete(`${removed[0]},${removed[1]}`);
                     }
                 }
-
-                if (valid) {
-                    path.push([newX, newY]);
-                    visited.add(key);
-                    x = newX;
-                    y = newY;
-                    pathLength++;
-                    moved = true;
-                    break;
+                if (path.length > 0) {
+                    const lastPos = path[path.length - 1];
+                    x = lastPos[0];
+                    y = lastPos[1];
                 }
+                continue;
+            } else {
+                break; // Can't continue
             }
         }
 
-        // If stuck, backtrack
-        if (!moved && path.length > 1) {
-            path.pop();
-            x = path[path.length - 1][0];
-            y = path[path.length - 1][1];
-        } else if (!moved) {
-            break; // Can't move anywhere
-        }
+        // Choose the best move based on current progress
+        const progress = path.length / targetLength;
+        const bestMove = chooseBestMove(possibleMoves, x, y, progress);
+
+        const newX = x + bestMove[0];
+        const newY = y + bestMove[1];
+
+        path.push([newX, newY]);
+        visited.add(`${newX},${newY}`);
+        x = newX;
+        y = newY;
     }
 
-    // Ensure the path reaches the top half of the board
-    if (path[path.length - 1][1] > BOARD_HEIGHT / 2) {
-        // Try to extend upwards
-        let lastX = path[path.length - 1][0];
-        let lastY = path[path.length - 1][1];
+    // Ensure path ends in upper area for castle
+    ensureProperEnding(path, visited);
 
-        while (lastY > 0 && pathLength < MAX_PATH_LENGTH) {
-            lastY--;
-            path.push([lastX, lastY]);
-            pathLength++;
-        }
-    }
-
-    // Add castle at the end
-    path[path.length - 1] = [path[path.length - 1][0], path[path.length - 1][1]];
-
-    // Add 1-3 branches (shorter paths that reconnect)
-    const branchCount = 1 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < branchCount && path.length < MAX_PATH_LENGTH; i++) {
-        addBranch(path, visited);
-    }
-
-    console.log('Generated path:', path);
+    console.log('Generated path with proper spacing:', path.length, 'tiles');
     return path;
 };
 
-function addBranch(mainPath: [number, number][], visited: Set<string>) {
-    if (mainPath.length < 10) return;
+function getPossibleMoves(
+    currentX: number,
+    currentY: number,
+    path: [number, number][],
+    visited: Set<string>,
+    directions: [number, number][]
+): [number, number][] {
+    const possibleMoves: [number, number][] = [];
 
-    const branchStartIndex = 5 + Math.floor(Math.random() * (mainPath.length - 10));
-    const [startX, startY] = mainPath[branchStartIndex];
-    const directions = [
-        [1, 0], [0, -1], [-1, 0], [0, 1]
-    ];
+    for (const [dx, dy] of directions) {
+        const newX = currentX + dx;
+        const newY = currentY + dy;
+        const key = `${newX},${newY}`;
 
-    let x = startX;
-    let y = startY;
-    const branch: [number, number][] = [];
-    const branchVisited = new Set<string>();
-    let branchLength = 0;
-    const maxBranchLength = 5 + Math.floor(Math.random() * 10);
-
-    while (branchLength < maxBranchLength) {
-        const shuffledDirections = [...directions].sort(() => Math.random() - 0.5);
-        let moved = false;
-
-        for (const [dx, dy] of shuffledDirections) {
-            const newX = x + dx;
-            const newY = y + dy;
-            const key = `${newX},${newY}`;
-
-            if (newX >= 0 && newX < BOARD_WIDTH &&
-                newY >= 0 && newY < BOARD_HEIGHT &&
-                !visited.has(key) && !branchVisited.has(key)) {
-
-                branch.push([newX, newY]);
-                branchVisited.add(key);
-                x = newX;
-                y = newY;
-                branchLength++;
-                moved = true;
-                break;
-            }
+        // Check boundaries
+        if (newX < 0 || newX >= BOARD_WIDTH || newY < 0 || newY >= BOARD_HEIGHT) {
+            continue;
         }
 
-        if (!moved) break;
+        // Check if already visited
+        if (visited.has(key)) {
+            continue;
+        }
+
+        // CRITICAL: Check for adjacency to non-consecutive path segments
+        if (hasNonConsecutiveAdjacency(newX, newY, path, visited)) {
+            continue;
+        }
+
+        possibleMoves.push([dx, dy]);
     }
 
-    // Reconnect to main path if possible
-    if (branch.length > 3) {
-        for (let i = branchStartIndex + 5; i < mainPath.length; i++) {
-            const [mainX, mainY] = mainPath[i];
-            const [lastX, lastY] = branch[branch.length - 1];
+    return possibleMoves;
+}
 
-            if (Math.abs(mainX - lastX) + Math.abs(mainY - lastY) === 1) {
-                branch.push([mainX, mainY]);
-                break;
+function hasNonConsecutiveAdjacency(
+    x: number,
+    y: number,
+    path: [number, number][],
+    visited: Set<string>
+): boolean {
+    const directions: [number, number][] = [[1, 0], [0, -1], [-1, 0], [0, 1]];
+
+    for (const [dx, dy] of directions) {
+        const checkX = x + dx;
+        const checkY = y + dy;
+        const checkKey = `${checkX},${checkY}`;
+
+        // If there's a visited tile adjacent to our potential position
+        if (visited.has(checkKey)) {
+            // Find where this tile is in our path
+            const tileIndex = path.findIndex(([px, py]) => px === checkX && py === checkY);
+
+            if (tileIndex >= 0) {
+                // If this adjacent tile is not the most recent tile in our path
+                // (i.e., it's not the tile we just came from), then this would create
+                // non-consecutive adjacency
+                if (tileIndex < path.length - 1) {
+                    return true; // Would create invalid adjacency
+                }
             }
         }
+    }
 
-        // Insert branch into main path
-        mainPath.splice(branchStartIndex + 1, 0, ...branch);
+    return false; // Safe to place here
+}
+
+function chooseBestMove(
+    possibleMoves: [number, number][],
+    currentX: number,
+    currentY: number,
+    progress: number
+): [number, number] {
+    if (possibleMoves.length === 1) {
+        return possibleMoves[0];
+    }
+
+    // Direction preferences based on progress
+    const preferences: [number, number][] = [];
+
+    if (progress < 0.4) {
+        // Early game: prefer right and up
+        preferences.push([1, 0], [0, -1]);
+    } else if (progress < 0.7) {
+        // Mid game: prefer up and horizontal movement
+        preferences.push([0, -1], [1, 0], [-1, 0]);
+    } else {
+        // Late game: head toward center-top for castle
+        const targetX = Math.floor(BOARD_WIDTH / 2);
+        if (currentX < targetX) {
+            preferences.push([1, 0], [0, -1]);
+        } else if (currentX > targetX) {
+            preferences.push([-1, 0], [0, -1]);
+        } else {
+            preferences.push([0, -1]);
+        }
+    }
+
+    // Find the first preferred move that's available
+    for (const pref of preferences) {
+        if (possibleMoves.some(([dx, dy]) => dx === pref[0] && dy === pref[1])) {
+            return pref;
+        }
+    }
+
+    // If no preferred move available, choose randomly
+    return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+}
+
+function ensureProperEnding(path: [number, number][], visited: Set<string>) {
+    if (path.length === 0) return;
+
+    const lastTile = path[path.length - 1];
+
+    // If path doesn't end high enough, try to extend upward
+    if (lastTile[1] > BOARD_HEIGHT / 2) {
+        let currentX = lastTile[0];
+        let currentY = lastTile[1];
+
+        // Try to move toward center and up
+        const targetX = Math.floor(BOARD_WIDTH / 2);
+
+        while (currentY > 1 && path.length < MAX_PATH_LENGTH) {
+            let moved = false;
+
+            // Try to move up first
+            if (currentY > 1) {
+                const upKey = `${currentX},${currentY - 1}`;
+                if (!visited.has(upKey) && !hasNonConsecutiveAdjacency(currentX, currentY - 1, path, visited)) {
+                    currentY--;
+                    path.push([currentX, currentY]);
+                    visited.add(`${currentX},${currentY}`);
+                    moved = true;
+                }
+            }
+
+            // If can't move up, try to move toward center horizontally
+            if (!moved && currentX !== targetX) {
+                const deltaX = currentX < targetX ? 1 : -1;
+                const sideKey = `${currentX + deltaX},${currentY}`;
+
+                if (currentX + deltaX >= 0 && currentX + deltaX < BOARD_WIDTH &&
+                    !visited.has(sideKey) &&
+                    !hasNonConsecutiveAdjacency(currentX + deltaX, currentY, path, visited)) {
+                    currentX += deltaX;
+                    path.push([currentX, currentY]);
+                    visited.add(`${currentX},${currentY}`);
+                    moved = true;
+                }
+            }
+
+            if (!moved) break;
+        }
     }
 }
