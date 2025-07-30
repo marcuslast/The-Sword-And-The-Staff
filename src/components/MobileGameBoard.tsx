@@ -76,7 +76,7 @@ const MobileGameBoard: React.FC<MobileGameBoardProps> = ({
                 return playerTile && playerTile.x === tile.x && playerTile.y === tile.y;
             });
 
-            const tilePosition = pathTiles.findIndex(t => t.x === tile.x && t.y === tile.y);
+            const tilePosition = tile.pathIndex !== undefined ? tile.pathIndex : pathTiles.findIndex(t => t.x === tile.x && t.y === tile.y);
             const isAvailable = isSelectingTile && availableTiles.includes(tilePosition);
 
             return (

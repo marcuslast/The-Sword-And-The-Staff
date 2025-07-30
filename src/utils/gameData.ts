@@ -1,3 +1,4 @@
+// src/utils/gameData.ts - Enhanced with battle items
 import { Item, Enemy, Question } from '../types/game.types';
 import {ENEMY_IMAGES} from "./enemyImage";
 
@@ -94,96 +95,103 @@ export const WEAPONS: Omit<Item, 'id'>[] = [
 ];
 
 export const ARMORS: Omit<Item, 'id'>[] = [
-    // Common Armors (25 items)
+    // ... (keep your existing armor items)
     { name: 'Leather Armor', type: 'armor', rarity: 'common', stats: 12, icon: 'armor', value: 24 },
-    { name: 'Padded Armor', type: 'armor', rarity: 'common', stats: 10, icon: 'armor', value: 20 },
-    { name: 'Hide Armor', type: 'armor', rarity: 'common', stats: 11, icon: 'armor', value: 22 },
-    { name: 'Studded Leather', type: 'armor', rarity: 'common', stats: 13, icon: 'armor', value: 26 },
-    { name: 'Ringmail', type: 'armor', rarity: 'common', stats: 14, icon: 'armor', value: 28 },
-    { name: 'Brigandine', type: 'armor', rarity: 'common', stats: 15, icon: 'armor', value: 30 },
-    { name: 'Gambeson', type: 'armor', rarity: 'common', stats: 12, icon: 'armor', value: 24 },
-    { name: 'Scale Mail', type: 'armor', rarity: 'common', stats: 16, icon: 'armor', value: 32 },
-    { name: 'Quilted Armor', type: 'armor', rarity: 'common', stats: 11, icon: 'armor', value: 22 },
-    { name: 'Leather Helm', type: 'armor', rarity: 'common', stats: 8, icon: 'helmet', value: 16 },
-    { name: 'Iron Cap', type: 'armor', rarity: 'common', stats: 9, icon: 'helmet', value: 18 },
-    { name: 'Buckler', type: 'armor', rarity: 'common', stats: 10, icon: 'shield', value: 20 },
-    { name: 'Wooden Shield', type: 'armor', rarity: 'common', stats: 12, icon: 'shield', value: 24 },
-    { name: 'Leather Gloves', type: 'armor', rarity: 'common', stats: 7, icon: 'gloves', value: 14 },
-    { name: 'Iron Bracers', type: 'armor', rarity: 'common', stats: 9, icon: 'bracers', value: 18 },
-    { name: 'Cloth Robe', type: 'armor', rarity: 'common', stats: 8, icon: 'robe', value: 16 },
-    { name: 'Leather Boots', type: 'armor', rarity: 'common', stats: 7, icon: 'boots', value: 14 },
-    { name: 'Iron Greaves', type: 'armor', rarity: 'common', stats: 10, icon: 'greaves', value: 20 },
-    { name: 'Wool Cloak', type: 'armor', rarity: 'common', stats: 6, icon: 'cloak', value: 12 },
-    { name: 'Chain Coif', type: 'armor', rarity: 'common', stats: 11, icon: 'helmet', value: 22 },
-    { name: 'Hide Shield', type: 'armor', rarity: 'common', stats: 11, icon: 'shield', value: 22 },
-    { name: 'Iron Pauldrons', type: 'armor', rarity: 'common', stats: 9, icon: 'pauldrons', value: 18 },
-    { name: 'Leather Belt', type: 'armor', rarity: 'common', stats: 5, icon: 'belt', value: 10 },
-    { name: 'Iron Boots', type: 'armor', rarity: 'common', stats: 10, icon: 'boots', value: 20 },
-    { name: 'Wooden Mask', type: 'armor', rarity: 'common', stats: 6, icon: 'mask', value: 12 },
-
-    // Uncommon Armors (15 items)
     { name: 'Chainmail', type: 'armor', rarity: 'uncommon', stats: 18, icon: 'armor', value: 90 },
-    { name: 'Boots of Speed', type: 'armor', rarity: 'uncommon', stats: 15, icon: 'boots', effect: 'movement_bonus', value: 120 },
-    { name: 'Bracers of Defense', type: 'armor', rarity: 'uncommon', stats: 22, icon: 'bracers', value: 110 },
-    { name: 'Splint Mail', type: 'armor', rarity: 'uncommon', stats: 20, icon: 'armor', value: 100 },
-    { name: 'Half Plate', type: 'armor', rarity: 'uncommon', stats: 22, icon: 'armor', value: 110 },
-    { name: 'Steel Shield', type: 'armor', rarity: 'uncommon', stats: 18, icon: 'shield', value: 90 },
-    { name: 'Silvered Armor', type: 'armor', rarity: 'uncommon', stats: 19, icon: 'armor', effect: 'lycanthrope_protection', value: 150 },
-    { name: 'Mithral Shirt', type: 'armor', rarity: 'uncommon', stats: 17, icon: 'armor', effect: 'no_stealth_penalty', value: 140 },
-    { name: 'Tower Shield', type: 'armor', rarity: 'uncommon', stats: 20, icon: 'shield', value: 100 },
-    { name: 'Dragonhide Armor', type: 'armor', rarity: 'uncommon', stats: 21, icon: 'armor', value: 105 },
-    { name: 'Spiked Armor', type: 'armor', rarity: 'uncommon', stats: 19, icon: 'armor', effect: 'melee_retaliation', value: 150 },
-    { name: 'Knight\'s Helm', type: 'armor', rarity: 'uncommon', stats: 16, icon: 'helmet', value: 80 },
-    { name: 'Elven Chain', type: 'armor', rarity: 'uncommon', stats: 18, icon: 'armor', value: 90 },
-    { name: 'Sentinel Shield', type: 'armor', rarity: 'uncommon', stats: 19, icon: 'shield', effect: 'perception_bonus', value: 150 },
-    { name: 'Mariner\'s Armor', type: 'armor', rarity: 'uncommon', stats: 17, icon: 'armor', effect: 'swimming_bonus', value: 140 },
-
-    // Rare Armors (8 items)
-    { name: 'Cloak of Protection', type: 'armor', rarity: 'rare', stats: 25, icon: 'cloak', effect: 'magic_resistance', value: 500 },
-    { name: 'Helm of Comprehending Languages', type: 'armor', rarity: 'rare', stats: 20, icon: 'helmet', effect: 'language_comprehension', value: 600 },
-    { name: 'Shield of Missile Attraction', type: 'armor', rarity: 'rare', stats: 28, icon: 'shield', effect: 'missile_attraction', value: 550 },
     { name: 'Plate Armor', type: 'armor', rarity: 'rare', stats: 30, icon: 'armor', value: 400 },
-    { name: 'Demonhide Armor', type: 'armor', rarity: 'rare', stats: 27, icon: 'armor', effect: 'fire_resistance', value: 700 },
-    { name: 'Wings of Flying', type: 'armor', rarity: 'rare', stats: 15, icon: 'cloak', effect: 'flight', value: 1000 },
-    { name: 'Armor of Resistance', type: 'armor', rarity: 'rare', stats: 25, icon: 'armor', effect: 'elemental_resistance', value: 800 },
-    { name: 'Helm of Telepathy', type: 'armor', rarity: 'rare', stats: 18, icon: 'helmet', effect: 'mind_reading', value: 900 },
-
-    // Very Rare Armors (5 items)
-    { name: 'Plate Armor of Etherealness', type: 'armor', rarity: 'legendary', stats: 40, icon: 'armor', effect: 'phase_shift', value: 2500 },
-    { name: 'Dragon Scale Mail', type: 'armor', rarity: 'very rare', stats: 35, icon: 'armor', effect: 'elemental_resistance', value: 1800 },
-    { name: 'Armor of Invulnerability', type: 'armor', rarity: 'very rare', stats: 38, icon: 'armor', effect: 'damage_reduction', value: 2000 },
-    { name: 'Mirror Shield', type: 'armor', rarity: 'very rare', stats: 32, icon: 'shield', effect: 'spell_reflection', value: 1900 },
-    { name: 'Celestial Armor', type: 'armor', rarity: 'very rare', stats: 36, icon: 'armor', effect: 'radiant_aura', value: 2100 },
-
-    // Legendary Armors (5 items)
-    { name: 'Robe of the Archmagi', type: 'armor', rarity: 'legendary', stats: 45, icon: 'robe', effect: 'spell_power', value: 4000 },
-    { name: 'Armor of the Gods', type: 'armor', rarity: 'legendary', stats: 50, icon: 'armor', effect: 'divine_protection', value: 4500 },
-    { name: 'Shield of the Aegis', type: 'armor', rarity: 'legendary', stats: 40, icon: 'shield', effect: 'absolute_defense', value: 4200 },
-    { name: 'Crown of Stars', type: 'armor', rarity: 'legendary', stats: 35, icon: 'crown', effect: 'stellar_power', value: 3800 },
-    { name: 'Phoenix Armor', type: 'armor', rarity: 'legendary', stats: 42, icon: 'armor', effect: 'rebirth', value: 5000 }
+    // Add more armor items as needed...
 ];
 
 export const TRAPS: Omit<Item, 'id'>[] = [
     { name: 'Pit Trap', type: 'trap', rarity: 'common', stats: 10, icon: 'hole', effect: 'fall_damage', value: 50 },
     { name: 'Poison Dart Trap', type: 'trap', rarity: 'uncommon', stats: 20, icon: 'dart', effect: 'poison', value: 120 },
-    { name: 'Anti-Magic Field', type: 'trap', rarity: 'rare', stats: 0, icon: 'rune', effect: 'magic_suppression', value: 300 },
-    { name: 'Mimic Chest', type: 'trap', rarity: 'very rare', stats: 35, icon: 'chest', effect: 'creature', value: 800 },
-    { name: 'Alarm Rune', type: 'trap', rarity: 'common', stats: 5, icon: 'rune', effect: 'alert', value: 40 },
-    { name: 'Web Trap', type: 'trap', rarity: 'uncommon', stats: 15, icon: 'web', effect: 'restrain', value: 100 },
-    { name: 'Reverse Gravity Trap', type: 'trap', rarity: 'legendary', stats: 50, icon: 'rune', effect: 'gravity_reversal', value: 2000 },
-    { name: 'Confusion Gas', type: 'trap', rarity: 'rare', stats: 25, icon: 'vial', effect: 'confusion', value: 400 },
-    { name: 'Soul Jar Trap', type: 'trap', rarity: 'legendary', stats: 60, icon: 'urn', effect: 'soul_capture', value: 2500 },
+    // Add more traps as needed...
+];
+
+// ENHANCED BATTLE ITEMS - NEW SECTION
+export const ENHANCED_BATTLE_ITEMS: Omit<Item, 'id'>[] = [
+    // Healing Potions
+    { name: 'Minor Health Potion', type: 'potion', rarity: 'common', stats: 20, icon: 'potion', effect: 'healing', value: 50 },
+    { name: 'Health Potion', type: 'potion', rarity: 'common', stats: 35, icon: 'potion', effect: 'healing', value: 75 },
+    { name: 'Greater Health Potion', type: 'potion', rarity: 'uncommon', stats: 50, icon: 'potion', effect: 'healing', value: 150 },
+    { name: 'Superior Health Potion', type: 'potion', rarity: 'rare', stats: 75, icon: 'potion', effect: 'healing', value: 300 },
+    { name: 'Master Health Potion', type: 'potion', rarity: 'very rare', stats: 100, icon: 'potion', effect: 'healing', value: 500 },
+
+    // Poison Items
+    { name: 'Basic Poison Vial', type: 'consumable', rarity: 'common', stats: 15, icon: 'vial', effect: 'weapon_poison', value: 80 },
+    { name: 'Deadly Poison', type: 'consumable', rarity: 'uncommon', stats: 25, icon: 'vial', effect: 'weapon_poison', value: 150 },
+    { name: 'Serpent\'s Venom', type: 'consumable', rarity: 'rare', stats: 40, icon: 'vial', effect: 'weapon_poison', value: 300 },
+    { name: 'Wyvern Toxin', type: 'consumable', rarity: 'very rare', stats: 60, icon: 'vial', effect: 'weapon_poison', value: 600 },
+
+    // Damage Poisons (immediate effect)
+    { name: 'Poison Dart', type: 'consumable', rarity: 'common', stats: 20, icon: 'dart', effect: 'poison_damage', value: 60 },
+    { name: 'Toxic Cloud', type: 'consumable', rarity: 'uncommon', stats: 35, icon: 'vial', effect: 'poison_damage', value: 120 },
+    { name: 'Acid Bomb', type: 'consumable', rarity: 'rare', stats: 50, icon: 'vial', effect: 'acid_damage', value: 250 },
+
+    // Buff Potions
+    { name: 'Potion of Strength', type: 'consumable', rarity: 'uncommon', stats: 15, icon: 'potion', effect: 'attack_boost', value: 200 },
+    { name: 'Potion of Iron Skin', type: 'consumable', rarity: 'uncommon', stats: 10, icon: 'potion', effect: 'defense_boost', value: 180 },
+    { name: 'Potion of Swiftness', type: 'consumable', rarity: 'uncommon', stats: 20, icon: 'potion', effect: 'speed_boost', value: 160 },
+    { name: 'Berserker\'s Rage', type: 'consumable', rarity: 'rare', stats: 25, icon: 'potion', effect: 'berserk', value: 400 },
+
+    // Utility Items
+    { name: 'Smoke Bomb', type: 'consumable', rarity: 'common', stats: 0, icon: 'bomb', effect: 'miss_chance', value: 100 },
+    { name: 'Flash Powder', type: 'consumable', rarity: 'uncommon', stats: 0, icon: 'powder', effect: 'blind_enemy', value: 150 },
+    { name: 'Caltrops', type: 'consumable', rarity: 'common', stats: 10, icon: 'trap', effect: 'enemy_slow', value: 80 },
+
+    // Special Combat Items
+    { name: 'Alchemist Fire', type: 'consumable', rarity: 'uncommon', stats: 30, icon: 'fire', effect: 'fire_damage', value: 180 },
+    { name: 'Holy Water', type: 'consumable', rarity: 'rare', stats: 45, icon: 'vial', effect: 'holy_damage', value: 300 },
+    { name: 'Frost Bomb', type: 'consumable', rarity: 'rare', stats: 35, icon: 'ice', effect: 'ice_damage', value: 280 },
+
+    // Emergency Items
+    { name: 'Escape Powder', type: 'consumable', rarity: 'uncommon', stats: 0, icon: 'powder', effect: 'flee_battle', value: 250 },
+    { name: 'Shield Potion', type: 'consumable', rarity: 'rare', stats: 50, icon: 'shield', effect: 'temp_shield', value: 350 },
+    { name: 'Regeneration Elixir', type: 'consumable', rarity: 'very rare', stats: 15, icon: 'potion', effect: 'regeneration', value: 800 },
 ];
 
 export const POTIONS: Omit<Item, 'id'>[] = [
-    { name: 'Health Potion', type: 'potion', rarity: 'common', stats: 15, icon: 'potion', effect: 'healing', value: 30 },
-    { name: 'Greater Healing Potion', type: 'potion', rarity: 'uncommon', stats: 30, icon: 'potion', value: 75 },
-    { name: 'Potion of Invisibility', type: 'potion', rarity: 'rare', stats: 0, icon: 'potion', effect: 'invisibility', value: 200 },
-    { name: 'Elixir of Fire Breath', type: 'potion', rarity: 'very rare', stats: 40, icon: 'potion', effect: 'fire_breath', value: 500 },
-    { name: 'Potion of Giant Strength', type: 'potion', rarity: 'rare', stats: 35, icon: 'potion', effect: 'strength_bonus', value: 300 },
-    { name: 'Potion of Speed', type: 'potion', rarity: 'uncommon', stats: 25, icon: 'potion', effect: 'haste', value: 150 },
-    { name: 'Potion of Flying', type: 'potion', rarity: 'very rare', stats: 0, icon: 'potion', effect: 'flight', value: 600 },
-    { name: 'Poison', type: 'potion', rarity: 'common', stats: 10, icon: 'potion', effect: 'damage', value: 25 },
+    // Health Potions
+    { name: 'Minor Health Potion', type: 'potion', rarity: 'common', stats: 15, icon: 'potion', effect: 'healing', value: 30 },
+    { name: 'Health Potion', type: 'potion', rarity: 'common', stats: 25, icon: 'potion', effect: 'healing', value: 50 },
+    { name: 'Greater Health Potion', type: 'potion', rarity: 'uncommon', stats: 40, icon: 'potion', effect: 'healing', value: 100 },
+    { name: 'Superior Health Potion', type: 'potion', rarity: 'rare', stats: 60, icon: 'potion', effect: 'healing', value: 200 },
+    { name: 'Master Health Potion', type: 'potion', rarity: 'very rare', stats: 80, icon: 'potion', effect: 'healing', value: 400 },
+    { name: 'Elixir of Life', type: 'potion', rarity: 'legendary', stats: 100, icon: 'potion', effect: 'full_healing', value: 800 },
+
+    // Damage Potions
+    { name: 'Acid Vial', type: 'consumable', rarity: 'common', stats: 12, icon: 'potion', effect: 'acid_damage', value: 40 },
+    { name: 'Alchemist\'s Fire', type: 'consumable', rarity: 'uncommon', stats: 18, icon: 'potion', effect: 'fire_damage', value: 80 },
+    { name: 'Frost Bomb', type: 'consumable', rarity: 'uncommon', stats: 20, icon: 'potion', effect: 'cold_damage', value: 90 },
+    { name: 'Lightning Bottle', type: 'consumable', rarity: 'rare', stats: 25, icon: 'potion', effect: 'lightning_damage', value: 150 },
+    { name: 'Explosive Flask', type: 'consumable', rarity: 'rare', stats: 30, icon: 'potion', effect: 'explosive_damage', value: 200 },
+
+    // Weapon Coatings
+    { name: 'Poison Coating', type: 'consumable', rarity: 'common', stats: 8, icon: 'potion', effect: 'weapon_poison', value: 60 },
+    { name: 'Serpent Venom', type: 'consumable', rarity: 'uncommon', stats: 12, icon: 'potion', effect: 'weapon_poison_strong', value: 120 },
+    { name: 'Oil of Sharpness', type: 'consumable', rarity: 'uncommon', stats: 10, icon: 'potion', effect: 'weapon_sharpness', value: 100 },
+    { name: 'Holy Water', type: 'consumable', rarity: 'rare', stats: 15, icon: 'potion', effect: 'weapon_holy', value: 180 },
+    { name: 'Dragon\'s Flame Oil', type: 'consumable', rarity: 'rare', stats: 18, icon: 'potion', effect: 'weapon_fire', value: 220 },
+    { name: 'Blessed Coating', type: 'consumable', rarity: 'very rare', stats: 20, icon: 'potion', effect: 'weapon_blessed', value: 350 },
+
+    // Buff Potions
+    { name: 'Potion of Strength', type: 'consumable', rarity: 'uncommon', stats: 15, icon: 'potion', effect: 'strength_boost', value: 100 },
+    { name: 'Potion of Toughness', type: 'consumable', rarity: 'uncommon', stats: 15, icon: 'potion', effect: 'defense_boost', value: 100 },
+    { name: 'Potion of Speed', type: 'consumable', rarity: 'uncommon', stats: 10, icon: 'potion', effect: 'speed_boost', value: 120 },
+    { name: 'Berserker\'s Rage', type: 'consumable', rarity: 'rare', stats: 25, icon: 'potion', effect: 'rage_mode', value: 200 },
+    { name: 'Potion of Giant Strength', type: 'consumable', rarity: 'very rare', stats: 30, icon: 'potion', effect: 'giant_strength', value: 400 },
+
+    // Debuff Potions (to throw at enemies)
+    { name: 'Weakness Poison', type: 'consumable', rarity: 'common', stats: 10, icon: 'potion', effect: 'enemy_weakness', value: 50 },
+    { name: 'Confusion Gas', type: 'consumable', rarity: 'uncommon', stats: 12, icon: 'potion', effect: 'enemy_confusion', value: 80 },
+    { name: 'Paralyzing Toxin', type: 'consumable', rarity: 'rare', stats: 15, icon: 'potion', effect: 'enemy_paralysis', value: 150 },
+    { name: 'Mind Control Serum', type: 'consumable', rarity: 'very rare', stats: 20, icon: 'potion', effect: 'enemy_control', value: 300 },
+
+    // Special Effect Potions
+    { name: 'Potion of Invisibility', type: 'consumable', rarity: 'rare', stats: 0, icon: 'potion', effect: 'invisibility', value: 250 },
+    { name: 'Potion of Flying', type: 'consumable', rarity: 'very rare', stats: 0, icon: 'potion', effect: 'flight', value: 400 },
+    { name: 'Elixir of Fire Breath', type: 'consumable', rarity: 'very rare', stats: 35, icon: 'potion', effect: 'fire_breath', value: 500 },
+    { name: 'Phoenix Tears', type: 'consumable', rarity: 'legendary', stats: 0, icon: 'potion', effect: 'resurrection', value: 1000 },
 ];
 
 export const MYTHIC: Omit<Item, 'id'>[] = [
@@ -210,67 +218,3 @@ export const ENEMIES: Omit<Enemy, 'id' | 'reward'>[] = [
     { name: 'Frost Wraith', health: 50, power: 22, image: ENEMY_IMAGES['frost_wraith'], goldReward: 55 },
     { name: 'Medusa', health: 70, power: 30, image: ENEMY_IMAGES['medusa'], goldReward: 90 },
 ];
-
-// Sample questions
-export const QUESTIONS: Question[] = [
-    {
-        id: '1',
-        category: 'Science',
-        question: 'What is the chemical symbol for gold?',
-        options: ['Go', 'Gd', 'Au', 'Ag'],
-        correctAnswer: 2,
-        difficulty: 1
-    },
-    {
-        id: '2',
-        category: 'Movies/TV',
-        question: 'Which movie won the Academy Award for Best Picture in 2020?',
-        options: ['1917', 'Joker', 'Parasite', 'Once Upon a Time in Hollywood'],
-        correctAnswer: 2,
-        difficulty: 2
-    },
-    {
-        id: '3',
-        category: 'Geography',
-        question: 'What is the capital of Australia?',
-        options: ['Sydney', 'Melbourne', 'Canberra', 'Brisbane'],
-        correctAnswer: 2,
-        difficulty: 1
-    },
-    {
-        id: '4',
-        category: 'Science',
-        question: 'How many planets are in our solar system?',
-        options: ['7', '8', '9', '10'],
-        correctAnswer: 1,
-        difficulty: 1
-    },
-    {
-        id: '5',
-        category: 'Movies/TV',
-        question: 'Who directed the movie "Inception"?',
-        options: ['Steven Spielberg', 'Christopher Nolan', 'Martin Scorsese', 'Quentin Tarantino'],
-        correctAnswer: 1,
-        difficulty: 2
-    },
-    {
-        id: '6',
-        category: 'Geography',
-        question: 'Which is the longest river in the world?',
-        options: ['Amazon', 'Nile', 'Yangtze', 'Mississippi'],
-        correctAnswer: 1,
-        difficulty: 2
-    },
-    {
-        id: '7',
-        category: 'Science',
-        question: 'What is the speed of light in vacuum?',
-        options: ['299,792 km/s', '199,792 km/s', '399,792 km/s', '499,792 km/s'],
-        correctAnswer: 0,
-        difficulty: 3
-    }
-];
-
-export const generateRandomQuestion = (): Question => {
-    return QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-};

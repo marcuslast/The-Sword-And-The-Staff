@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles } from 'lucide-react';
-import {BattleState, DiceRoll, Player, Item } from '../types/game.types';
+import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles, Clock, Flame, Droplets, Eye, Star } from 'lucide-react';
+import { BattleState, DiceRoll, Player, Item, BattleEffect } from '../types/game.types';
 import { getDiceIcon } from '../utils/diceUtils';
 
 interface DesktopBattleScreenProps {
@@ -14,44 +14,188 @@ interface DesktopBattleScreenProps {
     availableItems: Item[];
 }
 
+// Enhanced Item Selection Modal for Desktop
 const ItemSelectionModal: React.FC<{
     items: Item[];
     onSelect: (item: Item) => void;
     onClose: () => void;
-}> = ({ items, onSelect, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Select Item to Use</h3>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-                {items.map(item => (
-                    <button
-                        key={item.id}
-                        onClick={() => onSelect(item)}
-                        className="w-full p-3 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-between"
-                    >
-                        <div className="flex items-center">
-                            <span className="font-medium">{item.name}</span>
-                            <span className="text-xs ml-2 px-2 py-1 bg-gray-300 rounded">
-                                {item.type}
+}> = ({ items, onSelect, onClose }) => {
+    const [selectedCategory, setSelectedCategory] = useState<'all' | 'healing' | 'damage' | 'buff' | 'coating'>('all');
+
+    const categorizeItems = (items: Item[]) => {
+        return {
+            all: items,
+            healing: items.filter(item =>
+                item.effect?.includes('healing') || item.type === 'potion'
+            ),
+            damage: items.filter(item =>
+                item.effect?.includes('damage') && !item.effect?.includes('weapon')
+            ),
+            buff: items.filter(item =>
+                item.effect?.includes('boost') || item.effect?.includes('rage') ||
+                item.effect?.includes('strength') || item.effect?.includes('defense') ||
+                item.effect?.includes('invisibility')
+            ),
+            coating: items.filter(item =>
+                item.effect?.includes('weapon_')
+            )
+        };
+    };
+
+    const categorizedItems = categorizeItems(items);
+    const displayItems = categorizedItems[selectedCategory];
+
+    const getItemEffectIcon = (effect?: string) => {
+        if (!effect) return <Heart size={20} />;
+
+        if (effect.includes('healing')) return <Heart size={20} className="text-green-500" />;
+        if (effect.includes('fire')) return <Flame size={20} className="text-red-500" />;
+        if (effect.includes('cold') || effect.includes('frost')) return <Droplets size={20} className="text-blue-500" />;
+        if (effect.includes('lightning')) return <Zap size={20} className="text-yellow-500" />;
+        if (effect.includes('poison')) return <Droplets size={20} className="text-purple-500" />;
+        if (effect.includes('weapon')) return <Sword size={20} className="text-orange-500" />;
+        if (effect.includes('boost') || effect.includes('strength')) return <Star size={20} className="text-blue-500" />;
+        return <Heart size={20} />;
+    };
+
+    const getItemDescription = (item: Item) => {
+        switch (item.effect) {
+            case 'healing': return `Restores ${item.stats} HP instantly`;
+            case 'full_healing': return 'Fully restores all HP';
+            case 'acid_damage': return `Throws acid dealing ${item.stats} damage to enemy`;
+            case 'fire_damage': return `Throws fire dealing ${item.stats} damage to enemy`;
+            case 'cold_damage': return `Throws ice dealing ${item.stats} damage to enemy`;
+            case 'lightning_damage': return `Hurls lightning dealing ${item.stats} damage to enemy`;
+            case 'weapon_poison': return `Coats weapon with poison for 3 turns (+${item.stats} damage per hit)`;
+            case 'weapon_poison_strong': return `Coats weapon with deadly poison for 3 turns (+${item.stats} damage per hit)`;
+            case 'weapon_sharpness': return `Sharpens weapon for 4 turns (+${item.stats} damage per hit)`;
+            case 'weapon_fire': return `Ignites weapon for 5 turns (+${item.stats} fire damage per hit)`;
+            case 'weapon_holy': return `Blesses weapon for 4 turns (+${item.stats} holy damage per hit)`;
+            case 'strength_boost': return `Increases attack by ${item.stats} for 3 turns`;
+            case 'defense_boost': return `Increases defense by ${item.stats} for 3 turns`;
+            case 'rage_mode': return `Berserker rage: +${item.stats} attack, -5 defense for 4 turns`;
+            case 'enemy_weakness': return `Weakens enemy for 3 turns (-${item.stats} attack)`;
+            case 'enemy_confusion': return `Confuses enemy for 2 turns (50% miss chance)`;
+            case 'invisibility': return 'Become invisible for 2 turns (enemy attacks miss)';
+            case 'fire_breath': return `Breathe fire for ${item.stats} damage + burning effect`;
+            default: return item.type === 'potion' ? `Restores ${item.stats} HP` : 'Unknown effect';
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                <h3 className="text-xl font-bold mb-4">Select Item to Use</h3>
+
+                {/* Category Tabs */}
+                <div className="flex space-x-2 mb-4">
+                    {(['all', 'healing', 'damage', 'buff', 'coating'] as const).map(category =>
+                        <button
+                            key={category}
+                            onClick={() => setSelectedCategory(category as any)}
+                            className={`px-4 py-2 rounded-lg font-medium ${
+                                selectedCategory === category
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            {category.charAt(0).toUpperCase() + category.slice(1)}
+                            <span className="ml-2 text-sm opacity-75">
+                                ({categorizedItems[category].length})
+                            </span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Items Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                    {displayItems.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => onSelect(item)}
+                            className="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-3">
+                                    {getItemEffectIcon(item.effect)}
+                                    <span className="font-medium text-lg">{item.name}</span>
+                                </div>
+                                <span className="text-xs px-2 py-1 bg-gray-300 rounded capitalize font-medium">
+                                    {item.rarity}
+                                </span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                                {getItemDescription(item)}
+                            </div>
+                            <div className="mt-2 text-xs text-purple-600 font-semibold">
+                                Click to use • Consumes your turn
+                            </div>
+                        </button>
+                    ))}
+
+                    {displayItems.length === 0 && (
+                        <div className="col-span-full text-center text-gray-500 py-8">
+                            No {selectedCategory} items available for battle
+                        </div>
+                    )}
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="mt-4 w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// Effect Display Component for Desktop
+const EffectDisplay: React.FC<{
+    effects: BattleEffect[];
+    title: string;
+    className?: string;
+}> = ({ effects, title, className = "" }) => {
+    if (effects.length === 0) return null;
+
+    const getEffectIcon = (effect: BattleEffect) => {
+        if (effect.name.includes('Poison')) return <Droplets size={16} className="text-purple-500" />;
+        if (effect.name.includes('Fire') || effect.name.includes('Flame')) return <Flame size={16} className="text-red-500" />;
+        if (effect.name.includes('Cold') || effect.name.includes('Frost')) return <Droplets size={16} className="text-blue-500" />;
+        if (effect.name.includes('Sharp')) return <Sword size={16} className="text-gray-500" />;
+        if (effect.name.includes('Strength') || effect.name.includes('Rage')) return <Sword size={16} className="text-red-500" />;
+        if (effect.name.includes('Defense')) return <Shield size={16} className="text-blue-500" />;
+        if (effect.name.includes('Blessed') || effect.name.includes('Holy')) return <Star size={16} className="text-yellow-500" />;
+        if (effect.name.includes('Invisible')) return <Eye size={16} className="text-gray-500" />;
+        return <Clock size={16} className="text-gray-500" />;
+    };
+
+    return (
+        <div className={`bg-gray-100 rounded-lg p-3 ${className}`}>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <Sparkles size={16} className="mr-1" />
+                {title}
+            </h4>
+            <div className="space-y-2">
+                {effects.map((effect, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                        <div className="flex items-center space-x-2">
+                            {getEffectIcon(effect)}
+                            <span className="font-medium text-sm">{effect.name}</span>
+                            <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                                {effect.duration} turns
                             </span>
                         </div>
-                        {item.type === 'potion' && (
-                            <span className="text-green-600">+{item.stats} HP</span>
-                        )}
-                    </button>
+                        <span className="text-xs text-gray-600">{effect.description}</span>
+                    </div>
                 ))}
             </div>
-            <button
-                onClick={onClose}
-                className="mt-4 w-full bg-gray-500 text-white py-2 rounded-lg"
-            >
-                Cancel
-            </button>
         </div>
-    </div>
-);
+    );
+};
 
-// Animated Dice Component
+// Enhanced Animated Dice Component
 const AnimatedDice: React.FC<{
     roll: DiceRoll | null;
     rolling: boolean;
@@ -138,15 +282,15 @@ const HealthBar: React.FC<{
 };
 
 const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
-    battleState,
-    onAttack,
-    onDefend,
-    onContinue,
-    isPlayerTurn,
-    currentPlayer,
-    availableItems,
-    onUseItem}) => {
-
+                                                                     battleState,
+                                                                     onAttack,
+                                                                     onDefend,
+                                                                     onContinue,
+                                                                     isPlayerTurn,
+                                                                     currentPlayer,
+                                                                     availableItems,
+                                                                     onUseItem
+                                                                 }) => {
     const [rolling, setRolling] = useState(false);
     const [showEffects, setShowEffects] = useState(false);
     const [showItemModal, setShowItemModal] = useState(false);
@@ -167,6 +311,14 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
             }
         }, 1500);
     };
+
+    // Filter items that can be used in battle
+    const battleItems = availableItems.filter(item =>
+        item.type === 'potion' ||
+        item.type === 'consumable' ||
+        item.type === 'mythic' ||
+        (item.effect && !item.effect.includes('passive'))
+    );
 
     if (battleState.phase === 'victory' || battleState.phase === 'defeat') {
         return (
@@ -194,7 +346,8 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                             <p className="text-lg text-red-800">
                                 All your items have been lost!
                             </p>
-                        </div>                  </>
+                        </div>
+                    </>
                 )}
                 <button
                     onClick={onContinue}
@@ -207,7 +360,7 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-2xl p-8 max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg shadow-2xl p-8 max-w-6xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">⚔️ BATTLE!</h2>
 
             <div className="grid grid-cols-2 gap-8 mb-8">
@@ -239,8 +392,14 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                         label="Your Health"
                         color="bg-gradient-to-r from-blue-500 to-blue-600"
                     />
+
+                    {/* Player Effects */}
+                    <EffectDisplay
+                        effects={battleState.playerEffects || []}
+                        title="Active Effects"
+                        className="mt-4"
+                    />
                 </div>
-            </div>
 
                 {/* Enemy Section */}
                 <div className="bg-red-50 rounded-lg p-6">
@@ -272,7 +431,15 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                         label="Enemy Health"
                         color="bg-gradient-to-r from-red-500 to-red-600"
                     />
+
+                    {/* Enemy Effects */}
+                    <EffectDisplay
+                        effects={battleState.enemyEffects || []}
+                        title="Enemy Effects"
+                        className="mt-4"
+                    />
                 </div>
+            </div>
 
             {/* Dice Roll Section */}
             <div className="text-center mb-8">
@@ -325,20 +492,20 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                     </button>
                     <button
                         onClick={() => setShowItemModal(true)}
-                        disabled={availableItems.length === 0}
+                        disabled={battleItems.length === 0}
                         className={`bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-3 ${
-                            availableItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                            battleItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                     >
                         <Heart size={24} />
-                        <span className="text-xl">Item ({availableItems.length})</span>
+                        <span className="text-xl">Use Item ({battleItems.length})</span>
                     </button>
                 </div>
             )}
 
             {showItemModal && (
                 <ItemSelectionModal
-                    items={availableItems}
+                    items={battleItems}
                     onSelect={(item) => {
                         onUseItem(item);
                         setShowItemModal(false);
@@ -346,7 +513,6 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                     onClose={() => setShowItemModal(false)}
                 />
             )}
-
 
             {/* Combat Log */}
             <div className="bg-gray-100 rounded-lg p-6">

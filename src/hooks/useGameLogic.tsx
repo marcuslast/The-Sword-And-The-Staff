@@ -164,12 +164,38 @@ export const useGameLogic = () => {
                             }, 2000);
                         }
                         if (battle.phase === 'player_attack') {
+                            // AI decision making for battle actions
+                            const battleItems = getBattleItems(currentPlayer.inventory);
+                            const lowHealth = battle.playerHealth < battle.playerMaxHealth * 0.3;
+
+                            // AI prioritizes healing when health is low
+                            if (lowHealth && battleItems.some(item => item.effect === 'healing')) {
+                                const healingItem = battleItems.find(item => item.effect === 'healing');
+                                if (healingItem) {
+                                    setTimeout(() => {
+                                        handleUseItem(healingItem);
+                                    }, 1500);
+                                    return;
+                                }
+                            }
+
+                            // AI might use weapon coatings or buffs
+                            if (Math.random() < 0.3 && battleItems.some(item => item.effect?.includes('weapon_') || item.effect?.includes('boost'))) {
+                                const buffItem = battleItems.find(item =>
+                                    item.effect?.includes('weapon_') || item.effect?.includes('boost')
+                                );
+                                if (buffItem) {
+                                    setTimeout(() => {
+                                        handleUseItem(buffItem);
+                                    }, 1500);
+                                    return;
+                                }
+                            }
+
+                            // Default to attack
                             setTimeout(() => {
                                 const newBattleState = battleLogic.playerAttack(battle);
-                                setGameState(prev => ({
-                                    ...prev,
-                                    currentBattle: newBattleState
-                                }));
+                                updateBattleState(newBattleState);
                             }, 2000);
                         }
                         else if (battle.phase === 'enemy_attack') {
@@ -274,6 +300,31 @@ export const useGameLogic = () => {
             board: createGameBoard()
         }));
         setGameMode('playing');
+    };
+
+    const getBattleItems = (inventory: Item[]): Item[] => {
+        return inventory.filter(item => {
+            // Include potions and consumables
+            if (item.type === 'potion' || item.type === 'consumable' || item.type === 'mythic') {
+                return true;
+            }
+
+            // Include items with battle-usable effects
+            if (item.effect) {
+                const battleEffects = [
+                    'healing', 'full_healing',
+                    'acid_damage', 'fire_damage', 'cold_damage', 'lightning_damage', 'explosive_damage',
+                    'weapon_poison', 'weapon_poison_strong', 'weapon_sharpness', 'weapon_fire', 'weapon_holy', 'weapon_blessed',
+                    'strength_boost', 'defense_boost', 'speed_boost', 'rage_mode', 'giant_strength',
+                    'enemy_weakness', 'enemy_confusion', 'enemy_paralysis', 'enemy_control',
+                    'invisibility', 'flight', 'fire_breath', 'resurrection'
+                ];
+
+                return battleEffects.includes(item.effect);
+            }
+
+            return false;
+        });
     };
 
     const handlePlayerDefeat = (playerId: string) => {
@@ -660,13 +711,33 @@ export const useGameLogic = () => {
         setCanEndTurn(true);
     };
 
+    const shouldConsumeItem = (item: Item): boolean => {
+        // Always consume potions and most consumables
+        if (item.type === 'potion') return true;
+
+        if (item.type === 'consumable') {
+            // Most consumables are used up, but some might be reusable
+            const reusableEffects = ['invisibility_ring', 'flight_boots']; // hypothetical reusable items
+            return !reusableEffects.includes(item.effect || '');
+        }
+
+        // Mythic items are usually not consumed
+        if (item.type === 'mythic') {
+            // Some mythic items might be single-use
+            const singleUseMythic = ['phoenix_tears', 'resurrection_stone'];
+            return singleUseMythic.includes(item.effect || '');
+        }
+
+        return false;
+    };
+
     const handleUseItem = (item: Item) => {
         if (!gameState.currentBattle) return;
 
         const newBattleState = battleLogic.playerUseItem(gameState.currentBattle, item);
 
-        // Remove the used item from inventory if it's consumable
-        const shouldRemoveItem = ['potion', 'consumable'].includes(item.type);
+        // Determine if the item should be consumed
+        const shouldRemoveItem = shouldConsumeItem(item);
 
         setGameState(prev => ({
             ...prev,
@@ -678,7 +749,7 @@ export const useGameLogic = () => {
                         inventory: shouldRemoveItem
                             ? p.inventory.filter(i => i.id !== item.id)
                             : p.inventory,
-                        health: newBattleState.playerHealth // Update health if changed
+                        health: newBattleState.playerHealth // Update health if changed by item
                     };
                 }
                 return p;
@@ -718,6 +789,13 @@ export const useGameLogic = () => {
         battleLogic,
         updateBattleState,
         completeBattle,
-        resolveBattle
+        resolveBattle,
+
+        // items
+        handleUseItem,
+        getBattleItems: () => {
+            const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+            return currentPlayer ? getBattleItems(currentPlayer.inventory) : [];
+        },
     };
 };

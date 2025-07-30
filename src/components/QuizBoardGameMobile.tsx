@@ -19,7 +19,7 @@ import {
     EquipmentSlots
 } from "../types/game.types";
 import { createGameBoard, generateRandomItem, getAvailableTiles, getOrderedPathTiles } from '../utils/gameLogic';
-import { PLAYER_COLORS, RARITIES, generateRandomQuestion, ENEMIES, ITEM_POOL } from '../utils/gameData';
+import { PLAYER_COLORS, RARITIES, ENEMIES, ITEM_POOL } from '../utils/gameData';
 import { getItemSlot, calculateTotalStats, compareItems } from '../utils/equipmentLogic';
 
 // Mobile-optimized Item Icon Component
@@ -537,7 +537,11 @@ export const QuizBoardGameMobile: React.FC = () => {
             currentRound: 0,
             isPlayerTurn: true,
             phase: 'player_attack' as const,
-            playerStats: calculateTotalStats(currentPlayer)
+            playerStats: calculateTotalStats(currentPlayer),
+            // @ts-ignore
+            playerEffects: [],
+            // @ts-ignore
+            enemyEffects: []
         };
 
         setGameState(prev => ({

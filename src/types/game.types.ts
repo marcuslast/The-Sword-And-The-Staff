@@ -45,6 +45,9 @@ export interface Tile {
     enemy?: Enemy;
     trap?: Trap;
     isPath: boolean;
+    // Add these new properties:
+    connections?: number[];
+    pathIndex?: number;
 }
 
 export interface GameState {
@@ -104,8 +107,17 @@ export interface BattleState {
     isPlayerTurn: boolean;
     phase: 'initiative' | 'player_attack' | 'enemy_attack' | 'victory' | 'defeat';
     playerStats: PlayerStats;
+    playerEffects: BattleEffect[];
+    enemyEffects: BattleEffect[];
 }
 
+export interface BattleEffect {
+    type: 'weapon_coating' | 'stat_boost' | 'damage_over_time' | 'shield' | 'special';
+    name: string;
+    duration: number; // rounds remaining
+    value: number;
+    description: string;
+}
 
 export interface Player {
     id: string;
