@@ -48,38 +48,94 @@ export const getItemSlot = (item: Item): ItemSlot | null => {
     return iconToSlotMap[item.icon] || null;
 };
 
-// Calculate total stats from base stats + equipment
-export const calculateTotalStats = (player: Player): PlayerStats => {
-    const totalStats = { ...player.baseStats };
+// Calculate equipment bonuses separately from base stats
+export const calculateEquipmentBonuses = (player: Player): PlayerStats => {
+    const bonuses: PlayerStats = {
+        attack: 0,
+        defense: 0,
+        health: 0,
+        speed: 0
+    };
 
     // Add stats from equipped items
     Object.values(player.equipped).forEach(item => {
         if (item) {
             // Weapons primarily add attack
             if (item.type === 'weapon') {
-                totalStats.attack += item.stats;
-                totalStats.health += Math.floor(item.stats * 0.1); // Small health bonus
+                bonuses.attack += item.stats;
+                bonuses.health += Math.floor(item.stats * 0.1); // Small health bonus
             }
             // Armor primarily adds defense
             else if (item.type === 'armor' || item.icon === 'armor' || item.icon === 'shield' || item.icon === 'helmet') {
-                totalStats.defense += item.stats;
-                totalStats.health += Math.floor(item.stats * 0.3); // Moderate health bonus
+                bonuses.defense += item.stats;
+                bonuses.health += Math.floor(item.stats * 0.3); // Moderate health bonus
             }
             // Accessories add mixed stats
             else {
-                totalStats.attack += Math.floor(item.stats * 0.3);
-                totalStats.defense += Math.floor(item.stats * 0.3);
-                totalStats.speed += Math.floor(item.stats * 0.2);
+                bonuses.attack += Math.floor(item.stats * 0.3);
+                bonuses.defense += Math.floor(item.stats * 0.3);
+                bonuses.speed += Math.floor(item.stats * 0.2);
             }
 
             // Special effects
             if (item.effect === 'movement_bonus' || item.effect === 'haste') {
-                totalStats.speed += 10;
+                bonuses.speed += 10;
             }
         }
     });
 
-    return totalStats;
+    return bonuses;
+};
+
+// Calculate total stats from base stats + equipment
+export const calculateTotalStats = (player: Player): PlayerStats => {
+    const bonuses = calculateEquipmentBonuses(player);
+
+    return {
+        attack: player.baseStats.attack + bonuses.attack,
+        defense: player.baseStats.defense + bonuses.defense,
+        health: player.baseStats.health + bonuses.health,
+        speed: player.baseStats.speed + bonuses.speed
+    };
+};
+
+// Get detailed stat breakdown for UI display
+export interface StatBreakdown {
+    base: number;
+    bonus: number;
+    total: number;
+}
+
+export const getStatBreakdowns = (player: Player): {
+    attack: StatBreakdown;
+    defense: StatBreakdown;
+    health: StatBreakdown;
+    speed: StatBreakdown;
+} => {
+    const bonuses = calculateEquipmentBonuses(player);
+
+    return {
+        attack: {
+            base: player.baseStats.attack,
+            bonus: bonuses.attack,
+            total: player.baseStats.attack + bonuses.attack
+        },
+        defense: {
+            base: player.baseStats.defense,
+            bonus: bonuses.defense,
+            total: player.baseStats.defense + bonuses.defense
+        },
+        health: {
+            base: player.baseStats.health,
+            bonus: bonuses.health,
+            total: player.baseStats.health + bonuses.health
+        },
+        speed: {
+            base: player.baseStats.speed,
+            bonus: bonuses.speed,
+            total: player.baseStats.speed + bonuses.speed
+        }
+    };
 };
 
 // Compare two items
