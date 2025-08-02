@@ -160,18 +160,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
             </div>
 
-            {/* Instructions overlay */}
-            {isSelectingTile && (
-                <div className="absolute top-4 left-4 right-4 bg-green-600 bg-opacity-95 text-white p-4 rounded-xl z-40 shadow-lg">
-                    <div className="text-center">
-                        <div className="font-bold text-lg mb-1">🎯 Choose Your Destination!</div>
-                        <div className="text-sm opacity-90">
-                            Click on any glowing tile to move there
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Legend */}
             <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white p-3 rounded-lg text-xs space-y-1 z-30">
                 <div className="font-semibold mb-2">Legend:</div>

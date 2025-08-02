@@ -11,7 +11,8 @@ import EquipmentPanel from '../components/EquipmentPanel';
 import {
     AlertCircle, Trophy, Sword, Shield, Crown, Gem, Star,
     Heart, Skull, Package, Target, Zap, Move, User,
-    Dices, Castle, Swords, AlertTriangle, Sparkles, ShoppingCart, Coins
+    Dices, Castle, Swords, AlertTriangle, Sparkles, ShoppingCart, Coins,
+    Store, MapPin, ArrowLeft, ArrowRight, Navigation
 } from 'lucide-react';
 import { Item } from '../types/game.types';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
@@ -42,7 +43,118 @@ const RARITIES = {
     'legendary': { multiplier: 5, color: 'text-yellow-600', bgColor: 'bg-yellow-100', chance: 2 }
 };
 
-// Clean Game Status Component
+// ENHANCED: Tile Info Display Component
+const TileInfoDisplay: React.FC<{
+    currentTile: any;
+    isShopAvailable: boolean;
+}> = ({ currentTile, isShopAvailable }) => {
+    if (!currentTile) return null;
+
+    const getTileIcon = (tileType: string) => {
+        switch (tileType) {
+            case 'shop':
+            case 'village':
+            case 'town':
+            case 'city':
+            case 'merchant':
+                return <Store size={16} className="text-yellow-500" />;
+            case 'battle':
+                return <Swords size={16} className="text-red-500" />;
+            case 'bonus':
+                return <Sparkles size={16} className="text-purple-500" />;
+            case 'trap':
+                return <AlertTriangle size={16} className="text-orange-500" />;
+            case 'castle':
+                return <Castle size={16} className="text-blue-500" />;
+            default:
+                return <MapPin size={16} className="text-gray-500" />;
+        }
+    };
+
+    const getTileDescription = (tileType: string) => {
+        switch (tileType) {
+            case 'shop':
+            case 'village':
+            case 'town':
+            case 'city':
+            case 'merchant':
+                return 'Shop available';
+            case 'battle':
+                return 'Battle tile';
+            case 'bonus':
+                return 'Bonus reward';
+            case 'trap':
+                return 'Dangerous trap';
+            case 'castle':
+                return 'Victory tile';
+            default:
+                return 'Safe tile';
+        }
+    };
+
+    return (
+        <div className={`flex items-center space-x-2 p-2 rounded-lg ${
+            isShopAvailable
+                ? 'bg-yellow-50 border border-yellow-200'
+                : 'bg-gray-50 border border-gray-200'
+        }`}>
+            {getTileIcon(currentTile.type)}
+            <div className="flex-1">
+                <div className="text-sm font-medium text-gray-700 capitalize">
+                    {currentTile.type} Tile
+                </div>
+                <div className="text-xs text-gray-500">
+                    {getTileDescription(currentTile.type)}
+                </div>
+            </div>
+            {isShopAvailable && (
+                <div className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full">
+                    Shop Ready!
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ENHANCED: Movement Preview Component
+const MovementPreview: React.FC<{
+    availableTiles: number[];
+    currentPosition: number;
+    diceValue: number | null;
+}> = ({ availableTiles, currentPosition, diceValue }) => {
+    if (!diceValue || availableTiles.length === 0) return null;
+
+    const forwardMoves = availableTiles.filter(pos => pos > currentPosition);
+    const backwardMoves = availableTiles.filter(pos => pos < currentPosition);
+
+    return (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <h4 className="font-semibold text-green-800 mb-2 flex items-center">
+                <Navigation size={16} className="mr-2" />
+                Movement Options
+            </h4>
+            <div className="space-y-2 text-sm">
+                {forwardMoves.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                        <ArrowRight size={14} className="text-green-600" />
+                        <span>Forward: {forwardMoves.length} options (tiles {forwardMoves.join(', ')})</span>
+                    </div>
+                )}
+                {backwardMoves.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                        <ArrowLeft size={14} className="text-blue-600" />
+                        <span>Backward: {backwardMoves.length} options (tiles {backwardMoves.join(', ')})</span>
+                    </div>
+                )}
+                <div className="text-xs text-gray-600 pt-1 border-t border-green-200">
+                    💡 You can move in both directions!
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Clean Game Status Component with Enhanced Shop Button
 const CleanGameStatus: React.FC<{
     gameState: any;
     diceRolling: boolean;
@@ -51,6 +163,8 @@ const CleanGameStatus: React.FC<{
     availableTiles: number[];
     onHeal?: () => void;
     onOpenShop?: () => void;
+    isShopAvailable?: boolean;
+    getCurrentTileInfo?: () => any;
 }> = ({
           gameState,
           diceRolling,
@@ -59,6 +173,8 @@ const CleanGameStatus: React.FC<{
           availableTiles,
           onHeal,
           onOpenShop,
+          isShopAvailable = false,
+          getCurrentTileInfo,
       }) => {
     const currentPlayer = gameState.players.find((p: any) => p.id === gameState.currentPlayerId);
 
@@ -69,7 +185,7 @@ const CleanGameStatus: React.FC<{
             case 'rolling':
                 return 'Roll the dice to start your turn!';
             case 'selecting_tile':
-                return `Choose where to move (up to ${gameState.diceValue} spaces)`;
+                return `Choose where to move (rolled ${gameState.diceValue})`;
             case 'moving':
                 return 'Moving to selected tile...';
             case 'battle':
@@ -87,6 +203,7 @@ const CleanGameStatus: React.FC<{
 
     const statBreakdowns = getStatBreakdowns(currentPlayer);
     const isPlayerTurn = currentPlayer.id === '1';
+    const currentTile = getCurrentTileInfo ? getCurrentTileInfo() : null;
 
     return (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 space-y-6">
@@ -115,6 +232,14 @@ const CleanGameStatus: React.FC<{
                 </p>
             </div>
 
+            {/* ENHANCED: Current Tile Info */}
+            {currentTile && (
+                <TileInfoDisplay
+                    currentTile={currentTile}
+                    isShopAvailable={isShopAvailable}
+                />
+            )}
+
             {/* Dice Section */}
             {(gameState.phase === 'rolling' || (gameState.diceValue !== null && gameState.phase !== 'selecting_tile')) && (
                 <div className="text-center space-y-4">
@@ -139,7 +264,16 @@ const CleanGameStatus: React.FC<{
                 </div>
             )}
 
-            {/* Action Buttons */}
+            {/* ENHANCED: Movement Preview */}
+            {isSelectingTile && (
+                <MovementPreview
+                    availableTiles={availableTiles}
+                    currentPosition={currentPlayer.position}
+                    diceValue={gameState.diceValue}
+                />
+            )}
+
+            {/* Enhanced Action Buttons */}
             {gameState.phase === 'rolling' && isPlayerTurn && (
                 <div className="flex space-x-3">
                     {/* Heal Button */}
@@ -153,14 +287,30 @@ const CleanGameStatus: React.FC<{
                         </button>
                     )}
 
-                    {/* Shop Button */}
+                    {/* ENHANCED: Shop Button with Better Visual Feedback */}
                     {onOpenShop && (
                         <button
                             onClick={onOpenShop}
-                            className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg transform hover:scale-105"
+                            disabled={!isShopAvailable}
+                            className={`flex-1 font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg transform ${
+                                isShopAvailable
+                                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white hover:scale-105 ring-2 ring-yellow-300 ring-opacity-50'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                            }`}
+                            title={isShopAvailable ? 'Open shop - available on this tile!' : 'Shop not available on this tile'}
                         >
-                            <ShoppingCart className="inline mr-2" size={20} />
-                            Shop
+                            <div className="flex items-center justify-center space-x-2">
+                                <ShoppingCart size={20} />
+                                <span>Shop</span>
+                                {isShopAvailable && (
+                                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                )}
+                            </div>
+                            {!isShopAvailable && (
+                                <div className="text-xs mt-1 opacity-75">
+                                    Find shop tile
+                                </div>
+                            )}
                         </button>
                     )}
                 </div>
@@ -177,6 +327,8 @@ const CleanGameStatus: React.FC<{
                         Click on any <span className="font-bold text-green-600">glowing green tile</span> to move there.
                         <br />
                         Available moves: <span className="font-bold">{availableTiles.length} tiles</span>
+                        <br />
+                        <span className="text-sm">💡 You can move both forward and backward!</span>
                     </p>
                 </div>
             )}
@@ -499,6 +651,8 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                             availableTiles={props.availableTiles}
                             onHeal={props.handleHeal}
                             onOpenShop={props.openShop}
+                            isShopAvailable={props.isShopAvailable()}
+                            getCurrentTileInfo={props.getCurrentTileInfo}
                         />
 
                         <EquipmentPanel

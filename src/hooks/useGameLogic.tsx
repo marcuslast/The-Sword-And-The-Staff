@@ -127,26 +127,75 @@ export const useGameLogic = () => {
         const currentTile = pathTiles[currentPlayer.position];
 
         if (!currentTile) {
+            console.log('No current tile found at position:', currentPlayer.position);
             return false;
         }
 
-        // Define which tile types allow shop access
-        const allowedShopTiles = ['shop'];
+        // Debug logging
+        console.log('Current tile:', currentTile);
+        console.log('Tile type:', currentTile.type);
 
-        return allowedShopTiles.includes(currentTile.type);
+        // Define which tile types allow shop access - expanded to include more possibilities
+        const allowedShopTiles = ['shop', 'merchant'];
+
+        const isShopTile = allowedShopTiles.includes(currentTile.type);
+        console.log('Is shop tile:', isShopTile);
+
+        return isShopTile;
     };
 
     const openShop = () => {
+        console.log('Attempting to open shop...');
+        console.log('Shop available:', isShopAvailable());
+
         // Only allow shop access if on appropriate tile
         if (!isShopAvailable()) {
+            console.log('Shop not available on this tile');
             return;
         }
 
+        console.log('Opening shop...');
         setShowShop(true);
     };
 
     const closeShop = () => {
         setShowShop(false);
+    };
+
+    // NEW: Get enhanced tile information for better UI feedback
+    const getCurrentTileInfo = () => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer) return null;
+
+        const pathTiles = getOrderedPathTiles(gameState.board);
+        const currentTile = pathTiles[currentPlayer.position];
+
+        return currentTile || null;
+    };
+
+    // FIXED: Enhanced available tiles calculation to allow backward movement
+    const getEnhancedAvailableTiles = (currentPosition: number, diceValue: number | null) => {
+        if (!diceValue) return [];
+
+        const pathTiles = getOrderedPathTiles(gameState.board);
+        const availablePositions: number[] = [];
+
+        // Allow movement both forward and backward
+        for (let i = 1; i <= diceValue; i++) {
+            // Forward movement
+            const forwardPos = currentPosition + i;
+            if (forwardPos < pathTiles.length) {
+                availablePositions.push(forwardPos);
+            }
+
+            // Backward movement (don't go below 0)
+            const backwardPos = currentPosition - i;
+            if (backwardPos >= 0) {
+                availablePositions.push(backwardPos);
+            }
+        }
+
+        return availablePositions.sort((a, b) => a - b);
     };
 
     // Battle State Handler Effect
@@ -240,14 +289,15 @@ export const useGameLogic = () => {
                     break;
 
                 case 'selecting_tile':
-                    const availablePositions = getAvailableTiles(currentPlayer.position, gameState.diceValue, gameState.board);
+                    // FIXED: Use enhanced available tiles for AI
+                    const availablePositions = getEnhancedAvailableTiles(currentPlayer.position, gameState.diceValue);
                     setAvailableTiles(availablePositions);
                     setIsSelectingTile(true);
 
-                    if (availableTiles.length > 0) {
+                    if (availablePositions.length > 0) {
                         setTimeout(() => {
-                            const randomTileIndex = Math.floor(Math.random() * availableTiles.length);
-                            const selectedTile = availableTiles[randomTileIndex];
+                            const randomTileIndex = Math.floor(Math.random() * availablePositions.length);
+                            const selectedTile = availablePositions[randomTileIndex];
                             handleTileSelection(selectedTile);
                         }, 1500);
                     }
@@ -498,11 +548,8 @@ export const useGameLogic = () => {
 
                 setTimeout(() => {
                     if (currentPlayer) {
-                        const availablePositions = getAvailableTiles(
-                            currentPlayer.position,
-                            value, // Use the local value variable
-                            prev.board
-                        );
+                        // FIXED: Use enhanced available tiles calculation
+                        const availablePositions = getEnhancedAvailableTiles(currentPlayer.position, value);
                         setAvailableTiles(availablePositions);
                         setIsSelectingTile(true);
 
@@ -897,6 +944,9 @@ export const useGameLogic = () => {
         isShopAvailable,
         handleBuyItem,
         handleSellItem,
+
+        getCurrentTileInfo,
+        getEnhancedAvailableTiles,
 
         // Battle logic
         battleLogic,

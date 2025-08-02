@@ -144,18 +144,6 @@ const MobileGameBoard: React.FC<MobileGameBoardProps> = ({
                     })}
                 </div>
             </div>
-
-            {/* Instructions */}
-            {isSelectingTile && (
-                <div className="absolute top-4 left-4 right-4 bg-green-500 bg-opacity-90 text-white p-3 rounded-xl z-40">
-                    <div className="text-center font-semibold">
-                        🎯 Choose your destination!
-                    </div>
-                    <div className="text-sm text-center mt-1">
-                        Tap any glowing tile to move there
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

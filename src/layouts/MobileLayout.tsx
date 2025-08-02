@@ -10,7 +10,8 @@ import {
 } from '../components/HealthDisplay';
 import {
     Sword, Shield, Crown, Gem, Star, AlertTriangle, Skull, Package,
-    Heart, Trophy, Dices, User, Zap, Plus, ShoppingCart, Coins
+    Heart, Trophy, Dices, User, Zap, Plus, ShoppingCart, Coins,
+    Store, MapPin, ArrowLeft, ArrowRight, Navigation
 } from 'lucide-react';
 import { ItemSlot } from '../types/game.types';
 import MobileBattleScreen from '../components/MobileBattleScreen';
@@ -43,6 +44,93 @@ const RARITIES = {
     'legendary': { multiplier: 5, color: 'text-yellow-600', bgColor: 'bg-yellow-100', chance: 2 }
 };
 
+// ENHANCED: Mobile Tile Info Display Component
+const MobileTileInfoDisplay: React.FC<{
+    currentTile: any;
+    isShopAvailable: boolean;
+}> = ({ currentTile, isShopAvailable }) => {
+    if (!currentTile) return null;
+
+    const getTileIcon = (tileType: string) => {
+        switch (tileType) {
+            case 'shop':
+            case 'village':
+            case 'town':
+            case 'city':
+            case 'merchant':
+                return <Store size={14} className="text-yellow-500" />;
+            case 'battle':
+                return <Sword size={14} className="text-red-500" />;
+            case 'bonus':
+                return <Star size={14} className="text-purple-500" />;
+            case 'trap':
+                return <AlertTriangle size={14} className="text-orange-500" />;
+            case 'castle':
+                return <Crown size={14} className="text-blue-500" />;
+            default:
+                return <MapPin size={14} className="text-gray-500" />;
+        }
+    };
+
+    return (
+        <div className={`flex items-center space-x-2 p-2 rounded-lg text-sm ${
+            isShopAvailable
+                ? 'bg-yellow-50 border border-yellow-200'
+                : 'bg-gray-50 border border-gray-200'
+        }`}>
+            {getTileIcon(currentTile.type)}
+            <div className="flex-1">
+                <div className="font-medium text-gray-700 capitalize">
+                    {currentTile.type}
+                </div>
+            </div>
+            {isShopAvailable && (
+                <div className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full">
+                    Shop!
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ENHANCED: Mobile Movement Preview Component
+const MobileMovementPreview: React.FC<{
+    availableTiles: number[];
+    currentPosition: number;
+    diceValue: number | null;
+}> = ({ availableTiles, currentPosition, diceValue }) => {
+    if (!diceValue || availableTiles.length === 0) return null;
+
+    const forwardMoves = availableTiles.filter(pos => pos > currentPosition);
+    const backwardMoves = availableTiles.filter(pos => pos < currentPosition);
+
+    return (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+            <h4 className="font-semibold text-green-800 mb-2 flex items-center text-sm">
+                <Navigation size={14} className="mr-2" />
+                Movement Options
+            </h4>
+            <div className="space-y-1 text-xs">
+                {forwardMoves.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                        <ArrowRight size={12} className="text-green-600" />
+                        <span>Forward: {forwardMoves.length} options</span>
+                    </div>
+                )}
+                {backwardMoves.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                        <ArrowLeft size={12} className="text-blue-600" />
+                        <span>Backward: {backwardMoves.length} options</span>
+                    </div>
+                )}
+                <div className="text-xs text-gray-600 pt-1 border-t border-green-200">
+                    💡 Tap any glowing tile to move!
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
     const { gameState, gameMode, battleLogic } = props;
     const [activeTab, setActiveTab] = useState<'game' | 'inventory' | 'stats' | 'shop'>('game');
@@ -61,6 +149,14 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
             });
         }
     }, [gameState.phase]);
+
+    // Auto-switch away from shop tab when shop becomes unavailable
+    useEffect(() => {
+        const shopAvailable = props.isShopAvailable();
+        if (activeTab === 'shop' && !shopAvailable) {
+            setActiveTab('game');
+        }
+    }, [activeTab, gameState.currentPlayerId, props]);
 
     if (gameMode === 'menu') {
         return (
@@ -137,201 +233,242 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
     ) || [];
 
     // Updated Game Screen Content with cleaner stats
-    const GameContent = () => (
-        <div className="space-y-4">
-            {/* Game Board */}
-            <div className="h-80">
-                <MobileGameBoard
-                    board={gameState.board}
-                    players={gameState.players}
-                    currentPlayerId={gameState.currentPlayerId}
-                    availableTiles={props.availableTiles}
-                    isSelectingTile={props.isSelectingTile}
-                    onTileSelection={props.handleTileSelection}
-                />
-            </div>
+    const GameContent = () => {
+        // Get current values inside the component
+        const currentTileInfo = props.getCurrentTileInfo ? props.getCurrentTileInfo() : null;
+        const shopAvailable = props.isShopAvailable();
 
-            {/* REDESIGNED Current Player Info */}
-            <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                        <div
-                            className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-white"
-                            style={{ backgroundColor: currentPlayer?.color }}
-                        >
-                            {currentPlayer?.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-gray-900">{currentPlayer?.username}</h3>
-                            <p className="text-sm text-gray-600 capitalize">{gameState.phase.replace('_', ' ')}</p>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-gray-500">Position</p>
-                        <p className="text-xl font-bold text-purple-600">{currentPlayer?.position}</p>
-                        <div className="flex items-center justify-end space-x-1 mt-1">
-                            <Coins size={14} className="text-yellow-500" />
-                            <span className="text-sm font-bold text-yellow-600">{currentPlayer?.gold}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Clean Health Bar */}
-                <div className="mb-3">
-                    <HealthBar player={currentPlayer} showText={true} />
-                </div>
-
-                {/* Compact Stats Grid */}
-                <div className="grid grid-cols-3 gap-2">
-                    {(() => {
-                        const breakdowns = getStatBreakdowns(currentPlayer);
-                        return (
-                            <>
-                                <div className="bg-orange-50 rounded-lg p-2 text-center">
-                                    <Sword size={16} className="text-orange-500 mx-auto mb-1" />
-                                    <div className="text-sm font-bold text-gray-900">{breakdowns.attack.total}</div>
-                                    {breakdowns.attack.bonus > 0 && (
-                                        <div className="text-xs text-green-600 font-medium">+{breakdowns.attack.bonus}</div>
-                                    )}
-                                </div>
-                                <div className="bg-blue-50 rounded-lg p-2 text-center">
-                                    <Shield size={16} className="text-blue-500 mx-auto mb-1" />
-                                    <div className="text-sm font-bold text-gray-900">{breakdowns.defense.total}</div>
-                                    {breakdowns.defense.bonus > 0 && (
-                                        <div className="text-xs text-green-600 font-medium">+{breakdowns.defense.bonus}</div>
-                                    )}
-                                </div>
-                                <div className="bg-yellow-50 rounded-lg p-2 text-center">
-                                    <Zap size={16} className="text-yellow-500 mx-auto mb-1" />
-                                    <div className="text-sm font-bold text-gray-900">{breakdowns.speed.total}</div>
-                                    {breakdowns.speed.bonus > 0 && (
-                                        <div className="text-xs text-green-600 font-medium">+{breakdowns.speed.bonus}</div>
-                                    )}
-                                </div>
-                            </>
-                        );
-                    })()}
-                </div>
-            </div>
-
-            {/* Dice Section */}
-            {gameState.phase === 'rolling' && currentPlayer?.id === '1' && (
-                <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-                    <div className="flex items-center justify-center space-x-3 mb-3">
-                        <button
-                            onClick={props.rollDice}
-                            disabled={props.diceRolling}
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-lg"
-                        >
-                            <Dices className="inline mr-2" size={20} />
-                            {props.diceRolling ? 'Rolling...' : 'Roll Dice'}
-                        </button>
-
-                        {currentPlayer.health < getStatBreakdowns(currentPlayer).health.total && (
-                            <button
-                                onClick={props.handleHeal}
-                                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg"
-                            >
-                                <Heart size={18} />
-                            </button>
-                        )}
-
-                        <button
-                            onClick={props.openShop}
-                            disabled={!props.isShopAvailable}
-                            className={`font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg ${
-                                props.isShopAvailable
-                                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
-                        >
-                            <ShoppingCart size={18} />
-                        </button>
-                    </div>
-
-                    {/* Shop availability message */}
-                    {!props.isShopAvailable && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
-                            <p className="text-xs text-gray-600 text-center">
-                                🏪 Shop only available on certain tiles
-                            </p>
-                        </div>
-                    )}
-
-                    {gameState.diceValue && (
-                        <div className="text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg">
-                                <span className="text-2xl font-bold text-white">{gameState.diceValue}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Battle Section */}
-            {gameState.phase === 'battle' && gameState.currentBattle && (
-                <div ref={battleScreenRef}>
-                    <MobileBattleScreen
-                        battleState={gameState.currentBattle}
-                        onAttack={() => {
-                            if (gameState.currentBattle) {
-                                const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
-                                props.updateBattleState(newBattleState);
-                            }
-                        }}
-                        onDefend={() => {
-                            if (gameState.currentBattle) {
-                                const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
-                                props.updateBattleState(newBattleState);
-                            }
-                        }}
-                        onContinue={() => {
-                            if (gameState.currentBattle) {
-                                const result = battleLogic.resolveBattle(gameState.currentBattle);
-                                props.completeBattle(result.playerWon, gameState.currentBattle);
-                            }
-                        }}
-                        isPlayerTurn={currentPlayer?.id === '1'}
-                        currentPlayer={currentPlayer}
-                        availableItems={availableItems}
-                        onUseItem={(item) => {
-                            if (gameState.currentBattle) {
-                                const newBattleState = battleLogic.playerUseItem(gameState.currentBattle, item);
-                                props.updateBattleState(newBattleState);
-
-                                if (['potion', 'consumable'].includes(item.type)) {
-                                    props.setGameState(prev => ({
-                                        ...prev,
-                                        players: prev.players.map(p => {
-                                            if (p.id === gameState.currentPlayerId) {
-                                                return {
-                                                    ...p,
-                                                    inventory: p.inventory.filter(i => i.id !== item.id)
-                                                };
-                                            }
-                                            return p;
-                                        })
-                                    }));
-                                }
-                            }
-                        }}
+        return (
+            <div className="space-y-4">
+                {/* Game Board */}
+                <div className="h-80">
+                    <MobileGameBoard
+                        board={gameState.board}
+                        players={gameState.players}
+                        currentPlayerId={gameState.currentPlayerId}
+                        availableTiles={props.availableTiles}
+                        isSelectingTile={props.isSelectingTile}
+                        onTileSelection={props.handleTileSelection}
                     />
                 </div>
-            )}
 
-            {/* End Turn Button */}
-            {props.canEndTurn && currentPlayer?.id === '1' && (
-                <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 text-center">
-                    <button
-                        onClick={props.endTurn}
-                        className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg"
-                    >
-                        End Turn
-                    </button>
+                {/* ENHANCED: Current Tile Info */}
+                {currentTileInfo && (
+                    <MobileTileInfoDisplay
+                        currentTile={currentTileInfo}
+                        isShopAvailable={shopAvailable}
+                    />
+                )}
+
+                {/* REDESIGNED Current Player Info */}
+                <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                            <div
+                                className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-white"
+                                style={{ backgroundColor: currentPlayer?.color }}
+                            >
+                                {currentPlayer?.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">{currentPlayer?.username}</h3>
+                                <p className="text-sm text-gray-600 capitalize">{gameState.phase.replace('_', ' ')}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500">Position</p>
+                            <p className="text-xl font-bold text-purple-600">{currentPlayer?.position}</p>
+                            <div className="flex items-center justify-end space-x-1 mt-1">
+                                <Coins size={14} className="text-yellow-500" />
+                                <span className="text-sm font-bold text-yellow-600">{currentPlayer?.gold}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Clean Health Bar */}
+                    <div className="mb-3">
+                        <HealthBar player={currentPlayer} showText={true} />
+                    </div>
+
+                    {/* Compact Stats Grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                        {(() => {
+                            const breakdowns = getStatBreakdowns(currentPlayer);
+                            return (
+                                <>
+                                    <div className="bg-orange-50 rounded-lg p-2 text-center">
+                                        <Sword size={16} className="text-orange-500 mx-auto mb-1" />
+                                        <div className="text-sm font-bold text-gray-900">{breakdowns.attack.total}</div>
+                                        {breakdowns.attack.bonus > 0 && (
+                                            <div className="text-xs text-green-600 font-medium">+{breakdowns.attack.bonus}</div>
+                                        )}
+                                    </div>
+                                    <div className="bg-blue-50 rounded-lg p-2 text-center">
+                                        <Shield size={16} className="text-blue-500 mx-auto mb-1" />
+                                        <div className="text-sm font-bold text-gray-900">{breakdowns.defense.total}</div>
+                                        {breakdowns.defense.bonus > 0 && (
+                                            <div className="text-xs text-green-600 font-medium">+{breakdowns.defense.bonus}</div>
+                                        )}
+                                    </div>
+                                    <div className="bg-yellow-50 rounded-lg p-2 text-center">
+                                        <Zap size={16} className="text-yellow-500 mx-auto mb-1" />
+                                        <div className="text-sm font-bold text-gray-900">{breakdowns.speed.total}</div>
+                                        {breakdowns.speed.bonus > 0 && (
+                                            <div className="text-xs text-green-600 font-medium">+{breakdowns.speed.bonus}</div>
+                                        )}
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </div>
                 </div>
-            )}
-        </div>
-    );
+
+                {/* ENHANCED: Movement Preview */}
+                {props.isSelectingTile && (
+                    <MobileMovementPreview
+                        availableTiles={props.availableTiles}
+                        currentPosition={currentPlayer?.position || 0}
+                        diceValue={gameState.diceValue}
+                    />
+                )}
+
+                {/* Dice Section */}
+                {gameState.phase === 'rolling' && currentPlayer?.id === '1' && (
+                    <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
+                        <div className="flex items-center justify-center space-x-3 mb-3">
+                            <button
+                                onClick={props.rollDice}
+                                disabled={props.diceRolling}
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-lg"
+                            >
+                                <Dices className="inline mr-2" size={20} />
+                                {props.diceRolling ? 'Rolling...' : 'Roll Dice'}
+                            </button>
+
+                            {currentPlayer.health < getStatBreakdowns(currentPlayer).health.total && (
+                                <button
+                                    onClick={props.handleHeal}
+                                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg"
+                                >
+                                    <Heart size={18} />
+                                </button>
+                            )}
+
+                            {/* FIXED: Mobile Shop Button */}
+                            <button
+                                onClick={() => {
+                                    if (shopAvailable) {
+                                        setActiveTab('shop');
+                                    }
+                                }}
+                                className={`font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg ${
+                                    shopAvailable
+                                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white ring-2 ring-yellow-300 ring-opacity-50'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                                }`}
+                                title={shopAvailable ? 'Open shop - available on this tile!' : 'Shop not available on this tile'}
+                            >
+                                <div className="flex items-center justify-center space-x-1">
+                                    <ShoppingCart size={18} />
+                                    {shopAvailable && (
+                                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                    )}
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Enhanced shop availability message */}
+                        {!shopAvailable && (
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-gray-600 text-center">
+                                    🏪 Find a shop tile to access the merchant
+                                </p>
+                            </div>
+                        )}
+
+                        {shopAvailable && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-yellow-700 text-center font-medium">
+                                    🏪 Shop available on this tile! Tap the shop button to trade.
+                                </p>
+                            </div>
+                        )}
+
+                        {gameState.diceValue && (
+                            <div className="text-center">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg">
+                                    <span className="text-2xl font-bold text-white">{gameState.diceValue}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Battle Section */}
+                {gameState.phase === 'battle' && gameState.currentBattle && (
+                    <div ref={battleScreenRef}>
+                        <MobileBattleScreen
+                            battleState={gameState.currentBattle}
+                            onAttack={() => {
+                                if (gameState.currentBattle) {
+                                    const newBattleState = battleLogic.playerAttack(gameState.currentBattle);
+                                    props.updateBattleState(newBattleState);
+                                }
+                            }}
+                            onDefend={() => {
+                                if (gameState.currentBattle) {
+                                    const newBattleState = battleLogic.playerDefend(gameState.currentBattle);
+                                    props.updateBattleState(newBattleState);
+                                }
+                            }}
+                            onContinue={() => {
+                                if (gameState.currentBattle) {
+                                    const result = battleLogic.resolveBattle(gameState.currentBattle);
+                                    props.completeBattle(result.playerWon, gameState.currentBattle);
+                                }
+                            }}
+                            isPlayerTurn={currentPlayer?.id === '1'}
+                            currentPlayer={currentPlayer}
+                            availableItems={availableItems}
+                            onUseItem={(item) => {
+                                if (gameState.currentBattle) {
+                                    const newBattleState = battleLogic.playerUseItem(gameState.currentBattle, item);
+                                    props.updateBattleState(newBattleState);
+
+                                    if (['potion', 'consumable'].includes(item.type)) {
+                                        props.setGameState(prev => ({
+                                            ...prev,
+                                            players: prev.players.map(p => {
+                                                if (p.id === gameState.currentPlayerId) {
+                                                    return {
+                                                        ...p,
+                                                        inventory: p.inventory.filter(i => i.id !== item.id)
+                                                    };
+                                                }
+                                                return p;
+                                            })
+                                        }));
+                                    }
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {/* End Turn Button */}
+                {props.canEndTurn && currentPlayer?.id === '1' && (
+                    <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 text-center">
+                        <button
+                            onClick={props.endTurn}
+                            className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg"
+                        >
+                            End Turn
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // Updated Inventory Content
     const InventoryContent = () => (
@@ -496,6 +633,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                     {activeTab === 'game' && <GameContent />}
                     {activeTab === 'inventory' && <InventoryContent />}
                     {activeTab === 'stats' && <StatsContent />}
+                    {activeTab === 'shop' && <ShopContent />}
                 </div>
 
                 {/* Mobile Bottom Navigation */}
@@ -533,6 +671,29 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                         >
                             <Trophy size={20} />
                             <span className="text-xs mt-1 font-medium">Stats</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                const shopAvailable = props.isShopAvailable();
+                                if (shopAvailable) {
+                                    setActiveTab('shop');
+                                }
+                            }}
+                            className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${
+                                activeTab === 'shop'
+                                    ? 'bg-yellow-600 text-white shadow-lg'
+                                    : props.isShopAvailable()
+                                        ? 'text-yellow-600 hover:text-yellow-700'
+                                        : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                        >
+                            <div className="relative">
+                                <ShoppingCart size={20} />
+                                {props.isShopAvailable() && activeTab !== 'shop' && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                                )}
+                            </div>
+                            <span className="text-xs mt-1 font-medium">Shop</span>
                         </button>
                     </div>
                 </div>
