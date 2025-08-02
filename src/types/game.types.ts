@@ -45,7 +45,6 @@ export interface Tile {
     enemy?: Enemy;
     trap?: Trap;
     isPath: boolean;
-    // Add these new properties:
     connections?: number[];
     pathIndex?: number;
 }
@@ -119,9 +118,14 @@ export interface BattleEffect {
     description: string;
 }
 
+export type CharacterType =
+    'male-archer' | 'male-dwarf' | 'male-general' | 'male-knight' | 'male-sorcerer' | 'male-wizard' |
+    'female-general' | 'female-knight' | 'female-sorceress' | 'female-summoner' | 'female-thief' | 'female-witch';
+
 export interface Player {
     id: string;
     username: string;
+    character: CharacterType;
     position: number;
     health: number;
     maxHealth: number;

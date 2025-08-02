@@ -9,20 +9,19 @@ export const createGameBoard = (): Tile[] => {
     const tiles: Tile[] = [];
     const path = generateRandomPath();
     let hasShop = false;
-    let shopPosition = Math.floor(path.length * 0.3 + Math.random() * path.length * 0.4); // Between 30%-70% of path
+    let shopPosition = Math.floor(path.length * 0.3 + Math.random() * path.length * 0.4);
 
     // Create all tiles
     for (let y = 0; y < BOARD_HEIGHT; y++) {
         for (let x = 0; x < BOARD_WIDTH; x++) {
-            const isPath = path.some(([px, py]) => px === x && py === y);
-            const tileIndex = path.findIndex(([px, py]) => px === x && py === y);
+            const pathIndex = path.findIndex(([px, py]) => px === x && py === y);
+            const isPath = pathIndex !== -1;
 
             let type: Tile['type'] = 'normal';
-            if (tileIndex === 0) type = 'start';
-            else if (tileIndex === path.length - 1) type = 'castle';
-            else if (isPath && tileIndex === Math.floor(path.length * 0.6)) type = 'hoard';
-            else if (isPath && tileIndex > 0) {
-                // Randomly distribute special tiles
+            if (pathIndex === 0) type = 'start';
+            else if (pathIndex === path.length - 1) type = 'castle';
+            else if (isPath && pathIndex === Math.floor(path.length * 0.6)) type = 'hoard';
+            else if (isPath && pathIndex > 0) {
                 const rand = Math.random();
                 if (rand <= 0.35) type = 'battle';
                 else if (rand > 0.85 && rand < 0.95) type = 'bonus';
@@ -33,7 +32,7 @@ export const createGameBoard = (): Tile[] => {
             }
 
             // Force at least one shop if none was randomly placed
-            if (isPath && tileIndex === shopPosition && !hasShop) {
+            if (isPath && pathIndex === shopPosition && !hasShop) {
                 type = 'shop';
                 hasShop = true;
             }
@@ -44,7 +43,8 @@ export const createGameBoard = (): Tile[] => {
                 type,
                 x,
                 y,
-                isPath
+                isPath,
+                pathIndex: isPath ? pathIndex : undefined  // CRITICAL: Store the actual path order
             };
 
             // Add enemies to battle tiles
@@ -55,10 +55,10 @@ export const createGameBoard = (): Tile[] => {
                     ];
 
                 tile.enemy = {
-                    id: `enemy-${tileIndex}`,
+                    id: `enemy-${pathIndex}`,
                     ...enemyTemplate,
                     reward: {
-                        id: `reward-${tileIndex}`,
+                        id: `reward-${pathIndex}`,
                         ...rewardItem
                     }
                 };
@@ -72,7 +72,7 @@ export const createGameBoard = (): Tile[] => {
                     generateRandomItem('rare')
                 ].map(item => ({
                     ...item,
-                    value: Math.floor(item.value * 1.5) // Shops charge more
+                    value: Math.floor(item.value * 1.5)
                 }));
             }
 
@@ -114,92 +114,24 @@ export const getAvailableTiles = (currentPosition: number, diceValue: number, bo
     const pathTiles = getOrderedPathTiles(board);
     const availablePositions: number[] = [];
 
-    console.log('Current position:', currentPosition, 'Dice value:', diceValue);
-    console.log('Path tiles length:', pathTiles.length);
-
-    // CRITICAL FIX: Only allow consecutive forward movement along the path
-    // Player can move 1, 2, 3, ... up to diceValue spaces forward CONSECUTIVELY
+    // Only allow consecutive forward movement along the path
     for (let steps = 1; steps <= diceValue; steps++) {
         const newPosition = currentPosition + steps;
 
         // Check if the new position exists on the path
         if (newPosition < pathTiles.length) {
             availablePositions.push(newPosition);
-            console.log('Available consecutive position:', newPosition, 'Tile:', pathTiles[newPosition]);
         } else {
-            // Can't go beyond the end of the path
-            break;
+            break; // Can't go beyond the end of the path
         }
     }
 
-    console.log('Available consecutive positions:', availablePositions);
     return availablePositions;
 };
 
 // Helper function to get path tiles in correct order
 export const getOrderedPathTiles = (board: Tile[]): Tile[] => {
-    return board.filter(t => t.isPath).sort((a, b) => {
-        // Sort by y (bottom to top) then x (left to right)
-        if (a.y === b.y) return a.x - b.x;
-        return b.y - a.y;
-    });
-};
-
-// Additional helper function to validate a move
-export const isValidMove = (fromPosition: number, toPosition: number, diceValue: number, board: Tile[]): boolean => {
-    const pathTiles = getOrderedPathTiles(board);
-
-    // Check if both positions exist on the path
-    if (fromPosition < 0 || fromPosition >= pathTiles.length ||
-        toPosition < 0 || toPosition >= pathTiles.length) {
-        return false;
-    }
-
-    // Check if it's forward movement only
-    if (toPosition <= fromPosition) {
-        return false;
-    }
-
-    // Check if the movement is within dice range and consecutive
-    const steps = toPosition - fromPosition;
-    if (steps < 1 || steps > diceValue) {
-        return false;
-    }
-
-    // All checks passed - this is a valid consecutive move
-    return true;
-};
-
-// Enhanced tile selection validation
-export const validateTileSelection = (
-    currentPosition: number,
-    selectedPosition: number,
-    diceValue: number,
-    board: Tile[]
-): { valid: boolean; reason?: string } => {
-    const pathTiles = getOrderedPathTiles(board);
-
-    // Basic boundary checks
-    if (selectedPosition < 0 || selectedPosition >= pathTiles.length) {
-        return { valid: false, reason: 'Selected position is out of bounds' };
-    }
-
-    // Can't move backwards or stay in place
-    if (selectedPosition <= currentPosition) {
-        return { valid: false, reason: 'Can only move forward on the path' };
-    }
-
-    // Must be within dice roll range
-    const steps = selectedPosition - currentPosition;
-    if (steps > diceValue) {
-        return { valid: false, reason: `Can only move ${diceValue} steps, but selected tile is ${steps} steps away` };
-    }
-
-    // Must be consecutive movement (no skipping path segments)
-    const availableTiles = getAvailableTiles(currentPosition, diceValue, board);
-    if (!availableTiles.includes(selectedPosition)) {
-        return { valid: false, reason: 'Must follow the path consecutively - cannot skip tiles' };
-    }
-
-    return { valid: true };
+    return board
+        .filter(t => t.isPath && t.pathIndex !== undefined)
+        .sort((a, b) => (a.pathIndex || 0) - (b.pathIndex || 0));  // Sort by actual path order
 };

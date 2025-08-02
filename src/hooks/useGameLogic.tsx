@@ -5,7 +5,7 @@ import {
     Player,
     GameState,
     ItemSlot,
-    Tile
+    Tile, CharacterType
 } from '../types/game.types';
 import { createGameBoard, getAvailableTiles, getOrderedPathTiles, generateRandomItem } from '../utils/gameLogic';
 import { PLAYER_COLORS } from '../utils/gameData';
@@ -27,7 +27,11 @@ export const useGameLogic = () => {
         winner: null,
     });
     const [diceRolling, setDiceRolling] = useState(false);
-    const [playerSetup, setPlayerSetup] = useState({ name: '', playerCount: 2 });
+    const [playerSetup, setPlayerSetup] = useState({
+        name: '',
+        playerCount: 2,
+        character: 'male-knight' as CharacterType
+    });
     const [availableTiles, setAvailableTiles] = useState<number[]>([]);
     const [isSelectingTile, setIsSelectingTile] = useState(false);
     const [currentReward, setCurrentReward] = useState<Item | null>(null);
@@ -219,6 +223,7 @@ export const useGameLogic = () => {
         }
 
         // Handle battle resolution
+
         if (battle.phase === 'victory' || battle.phase === 'defeat') {
             const timer = setTimeout(() => {
                 const playerWon = battle.phase === 'victory';
@@ -250,14 +255,10 @@ export const useGameLogic = () => {
                     }));
                     setCurrentReward(battle.enemy.reward);
                 } else {
-                    // Player loses - update health from battle state
+                    // Player loses - call handlePlayerDefeat to properly reset them
+                    handlePlayerDefeat(currentPlayer.id);
                     setGameState(prev => ({
                         ...prev,
-                        players: prev.players.map(p =>
-                            p.id === currentPlayer.id
-                                ? { ...p, health: Math.max(0, battle.playerHealth) }
-                                : p
-                        ),
                         phase: 'finishing',
                         currentBattle: null
                     }));
@@ -289,7 +290,6 @@ export const useGameLogic = () => {
                     break;
 
                 case 'selecting_tile':
-                    // FIXED: Use enhanced available tiles for AI
                     const availablePositions = getEnhancedAvailableTiles(currentPlayer.position, gameState.diceValue);
                     setAvailableTiles(availablePositions);
                     setIsSelectingTile(true);
@@ -306,18 +306,6 @@ export const useGameLogic = () => {
                 case 'battle':
                     if (gameState.currentBattle) {
                         const battle = gameState.currentBattle;
-                        if (battle.phase === 'defeat') {
-                            // AI was defeated - reset position and inventory
-                            handlePlayerDefeat(currentPlayer.id);
-                            setTimeout(() => {
-                                setGameState(prev => ({
-                                    ...prev,
-                                    currentBattle: null,
-                                    phase: 'finishing'
-                                }));
-                                setCanEndTurn(true);
-                            }, 2000);
-                        }
                         if (battle.phase === 'player_attack') {
                             // AI decision making for battle actions
                             const battleItems = getBattleItems(currentPlayer.inventory);
@@ -391,10 +379,21 @@ export const useGameLogic = () => {
 
     // Game Functions
     const startGame = () => {
+        // All available character types
+        const allCharacters: CharacterType[] = [
+            'male-archer', 'male-dwarf', 'male-general', 'male-knight', 'male-sorcerer', 'male-wizard',
+            'female-general', 'female-knight', 'female-sorceress', 'female-summoner', 'female-thief', 'female-witch'
+        ];
+
+        // Human player's character
+        const humanCharacter = playerSetup.character;
+        const usedCharacters = new Set<CharacterType>([humanCharacter]);
+
         const newPlayers: Player[] = [
             {
                 id: '1',
                 username: playerSetup.name,
+                character: humanCharacter,
                 position: 0,
                 health: playerSetup.name === 'mlastweak' ? 1 : 100,
                 maxHealth: 100,
@@ -419,10 +418,23 @@ export const useGameLogic = () => {
             }
         ];
 
+        // randomise
+
         for (let i = 1; i < playerSetup.playerCount; i++) {
+            // Get available characters (not already used)
+            const availableCharacters = allCharacters.filter(c => !usedCharacters.has(c));
+
+            // If we've run out of unique characters, just pick randomly from all
+            const character = availableCharacters.length > 0
+                ? availableCharacters[Math.floor(Math.random() * availableCharacters.length)]
+                : allCharacters[Math.floor(Math.random() * allCharacters.length)];
+
+            usedCharacters.add(character);
+
             newPlayers.push({
                 id: `${i + 1}`,
                 username: `AI Player ${i}`,
+                character,
                 position: 0,
                 health: playerSetup.name === 'mlastweak' ? 1 : 100,
                 maxHealth: 100,
@@ -487,36 +499,25 @@ export const useGameLogic = () => {
             const defeatedPlayer = prev.players.find(p => p.id === playerId);
             if (!defeatedPlayer) return prev;
 
-            // Collect the defeated player's inventory and gold
-            const lootedItems = [...defeatedPlayer.inventory];
-            const lootedGold = defeatedPlayer.gold;
+            // Calculate base stats without equipment
+            const baseStats = {
+                ...defeatedPlayer.baseStats,
+                health: defeatedPlayer.baseStats.health // Ensure we use base health
+            };
 
-            // Find the hoard tile and add the items
-            const updatedBoard = prev.board.map(tile => {
-                if (tile.type === 'hoard') {
-                    return {
-                        ...tile,
-                        hoardItems: [...(tile.hoardItems || []), ...lootedItems]
-                    };
-                }
-                return tile;
-            });
+            const maxHealth = baseStats.health;
 
+            // Reset player with full health
             const updatedPlayers = prev.players.map(p => {
                 if (p.id === playerId) {
-                    const maxHealth = calculateTotalStats({
-                        ...p,
-                        equipped: {} // Calculate base max health without equipment
-                    }).health;
-
                     return {
                         ...p,
                         position: 0,
-                        health: maxHealth, // Fully restore health
-                        maxHealth: maxHealth, // Update max health in case equipment changed it
+                        health: maxHealth,
+                        maxHealth: maxHealth,
                         inventory: [],
                         equipped: {},
-                        gold: 100, // Reset to starting gold
+                        gold: 100,
                     };
                 }
                 return p;
@@ -524,8 +525,7 @@ export const useGameLogic = () => {
 
             return {
                 ...prev,
-                players: updatedPlayers,
-                board: updatedBoard
+                players: updatedPlayers
             };
         });
     };
@@ -694,7 +694,7 @@ export const useGameLogic = () => {
                 }
                 return p;
             }),
-            phase: newHealth <= 0 ? 'finishing' : 'finishing'
+            phase: 'finishing'
         }));
 
         setCanEndTurn(true);

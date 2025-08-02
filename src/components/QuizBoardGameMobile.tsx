@@ -378,6 +378,7 @@ export const QuizBoardGameMobile: React.FC = () => {
             {
                 id: '1',
                 username: playerSetup.name,
+                character: 'male-knight',
                 position: 0,
                 health: 100,
                 maxHealth: 100,
@@ -407,6 +408,7 @@ export const QuizBoardGameMobile: React.FC = () => {
             newPlayers.push({
                 id: `${i + 1}`,
                 username: `AI Player ${i}`,
+                character: 'male-dwarf',
                 position: 0,
                 health: 100,
                 maxHealth: 100,

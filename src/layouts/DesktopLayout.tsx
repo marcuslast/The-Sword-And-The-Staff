@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Item } from '../types/game.types';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
+import CharacterSelection from "../components/CharacterSelection";
 
 interface DesktopLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -588,12 +589,13 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
         );
     }
 
+    // Update the setup section
     if (gameMode === 'setup') {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-8">
-                <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
                     <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Game Setup</h2>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         <input
                             type="text"
                             placeholder="Enter your name"
@@ -601,6 +603,13 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                             onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
                             className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
                         />
+
+                        <CharacterSelection
+                            selectedCharacter={props.playerSetup.character}
+                            onSelect={(character) => props.setPlayerSetup({...props.playerSetup, character})}
+                            onConfirm={() => {}}
+                        />
+
                         <select
                             value={props.playerSetup.playerCount}
                             onChange={(e) => props.setPlayerSetup({...props.playerSetup, playerCount: parseInt(e.target.value)})}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles, Clock, Flame, Droplets, Eye, Star } from 'lucide-react';
 import { BattleState, DiceRoll, Player, Item, BattleEffect } from '../types/game.types';
-import { getDiceIcon } from '../utils/diceUtils';
 
 interface DesktopBattleScreenProps {
     battleState: BattleState;

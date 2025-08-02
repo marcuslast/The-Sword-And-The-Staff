@@ -17,6 +17,7 @@ import { ItemSlot } from '../types/game.types';
 import MobileBattleScreen from '../components/MobileBattleScreen';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
 import backgroundImg from '../assets/images/background.jpg';
+import CharacterSelection from "../components/CharacterSelection";
 
 interface MobileLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -181,6 +182,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
         );
     }
 
+    // In the setup section (gameMode === 'setup')
     if (gameMode === 'setup') {
         return (
             <div className="min-h-screen relative">
@@ -200,6 +202,14 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                                 onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
+
+                            {/* Add CharacterSelection component here */}
+                            <CharacterSelection
+                                selectedCharacter={props.playerSetup.character}
+                                onSelect={(character) => props.setPlayerSetup({...props.playerSetup, character})}
+                                onConfirm={() => {}} // Optional confirm handler if needed
+                            />
+
                             <select
                                 value={props.playerSetup.playerCount}
                                 onChange={(e) => props.setPlayerSetup({...props.playerSetup, playerCount: parseInt(e.target.value)})}
@@ -210,10 +220,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                                 <option value={4}>4 Players</option>
                             </select>
                             <button
-                                onClick={() => {
-                                    console.log('Mobile startGame clicked with:', props.playerSetup);
-                                    props.startGame();
-                                }}
+                                onClick={props.startGame}
                                 disabled={!props.playerSetup.name.trim()}
                                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
