@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BattleState, DiceRoll, Player, Item, BattleEffect } from '../types/game.types';
 import { getDiceIcon } from '../utils/diceUtils';
+import { CHARACTER_IMAGES } from '../utils/characterImage';
 
 interface MobileBattleScreenProps {
     battleState: BattleState;
@@ -329,8 +330,12 @@ const MobileBattleScreen: React.FC<MobileBattleScreenProps> = ({
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Shield size={32} className="text-white" />
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+                                <img
+                                    src={CHARACTER_IMAGES[currentPlayer.character]}
+                                    alt={currentPlayer.username}
+                                    className="w-full h-full object-cover rounded-2xl"
+                                />
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-white">

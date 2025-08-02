@@ -17,6 +17,8 @@ import {
 import { Item } from '../types/game.types';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
 import CharacterSelection from "../components/CharacterSelection";
+import {CHARACTER_IMAGES} from "../utils/characterImage";
+import { getCharacterImage } from '../utils/characterUtils';
 
 interface DesktopLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -211,11 +213,18 @@ const CleanGameStatus: React.FC<{
             {/* Current Player Header */}
             <div className="text-center border-b border-gray-200 pb-4">
                 <div className="flex items-center justify-center space-x-3 mb-3">
-                    <div
-                        className="w-16 h-16 rounded-full border-2 border-white shadow-lg flex items-center justify-center font-bold text-white text-xl"
-                        style={{ backgroundColor: currentPlayer.color }}
-                    >
-                        {currentPlayer.username.charAt(0).toUpperCase()}
+                    <div className="w-16 h-16 rounded-full border-2 border-white shadow-lg flex items-center justify-center overflow-hidden">
+                        {currentPlayer.character in CHARACTER_IMAGES ? (
+                            <img
+                                src={getCharacterImage(currentPlayer.character)}
+                                alt={currentPlayer.username}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gray-400 flex items-center justify-center">
+                                <User size={24} className="text-white" />
+                            </div>
+                        )}
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900">

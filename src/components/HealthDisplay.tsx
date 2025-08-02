@@ -2,6 +2,7 @@ import React from 'react';
 import { Heart, Shield, Sword, Zap } from 'lucide-react';
 import { Player } from '../types/game.types';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
+import {CHARACTER_IMAGES} from "../utils/characterImage";
 
 interface HealthDisplayProps {
     player: Player;
@@ -346,11 +347,12 @@ export const PlayerSummary: React.FC<PlayerSummaryProps> = ({
             isCurrentPlayer ? 'border-purple-300 bg-purple-50' : 'border-gray-200'
         } ${className}`}>
             <div className="flex items-center space-x-3 mb-3">
-                <div
-                    className="w-10 h-10 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-white"
-                    style={{ backgroundColor: player.color }}
-                >
-                    {player.username.charAt(0).toUpperCase()}
+                <div className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center overflow-hidden">
+                    <img
+                        src={CHARACTER_IMAGES[player.character]}
+                        alt={player.username}
+                        className="w-full h-full object-cover"
+                    />
                 </div>
                 <div className="flex-1">
                     <div className="flex items-center space-x-2">

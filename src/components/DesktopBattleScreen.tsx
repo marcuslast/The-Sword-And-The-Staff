@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Shield, Heart, Zap, Trophy, Skull, Sparkles, Clock, Flame, Droplets, Eye, Star } from 'lucide-react';
 import { BattleState, DiceRoll, Player, Item, BattleEffect } from '../types/game.types';
+import { CHARACTER_IMAGES } from '../utils/characterImage';
 
 interface DesktopBattleScreenProps {
     battleState: BattleState;
@@ -366,8 +367,12 @@ const DesktopBattleScreen: React.FC<DesktopBattleScreenProps> = ({
                 {/* Player Section */}
                 <div className="bg-blue-50 rounded-lg p-6">
                     <div className="flex items-center mb-4">
-                        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mr-4">
-                            <Shield size={40} className="text-white" />
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mr-4 overflow-hidden">
+                            <img
+                                src={CHARACTER_IMAGES[currentPlayer.character]}
+                                alt={currentPlayer.username}
+                                className="w-full h-full object-cover rounded-2xl"
+                            />
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold text-blue-800">

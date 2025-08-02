@@ -18,6 +18,7 @@ import MobileBattleScreen from '../components/MobileBattleScreen';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
 import backgroundImg from '../assets/images/background.jpg';
 import CharacterSelection from "../components/CharacterSelection";
+import {CHARACTER_IMAGES} from "../utils/characterImage";
 
 interface MobileLayoutProps extends ReturnType<typeof useGameLogic> {}
 
@@ -271,11 +272,12 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
-                            <div
-                                className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-white"
-                                style={{ backgroundColor: currentPlayer?.color }}
-                            >
-                                {currentPlayer?.username.charAt(0).toUpperCase()}
+                            <div className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center overflow-hidden">
+                                <img
+                                    src={CHARACTER_IMAGES[currentPlayer.character]}
+                                    alt={currentPlayer.username}
+                                    className="w-full h-full object-cover"
+                                />
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-900">{currentPlayer?.username}</h3>

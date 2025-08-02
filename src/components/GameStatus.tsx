@@ -3,6 +3,7 @@ import { GameState } from '../types/game.types';
 import AnimatedDice from './AnimatedDice';
 import { Heart, Sword, Shield, Zap } from 'lucide-react';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
+import {CHARACTER_IMAGES} from "../utils/characterImage";
 
 interface GameStatusProps {
     gameState: GameState;
@@ -53,11 +54,12 @@ const GameStatus: React.FC<GameStatusProps> = ({
             {/* Current Player Header */}
             <div className="text-center border-b border-gray-200 pb-4">
                 <div className="flex items-center justify-center space-x-3 mb-3">
-                    <div
-                        className="w-12 h-12 rounded-full border-2 border-white shadow-lg flex items-center justify-center font-bold text-white"
-                        style={{ backgroundColor: currentPlayer.color }}
-                    >
-                        {currentPlayer.username.charAt(0).toUpperCase()}
+                    <div className="w-16 h-16 rounded-full border-2 border-white shadow-lg flex items-center justify-center overflow-hidden">
+                        <img
+                            src={CHARACTER_IMAGES[currentPlayer.character]}
+                            alt={currentPlayer.username}
+                            className="w-full h-full object-cover"
+                        />
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-gray-900">
