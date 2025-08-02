@@ -33,6 +33,9 @@ export const useGameLogic = () => {
     const [currentReward, setCurrentReward] = useState<Item | null>(null);
     const [canEndTurn, setCanEndTurn] = useState(false);
 
+    // Shop state
+    const [showShop, setShowShop] = useState(false);
+
     const battleLogic = useBattleLogic();
 
     const handleRewardDismiss = () => {
@@ -42,6 +45,108 @@ export const useGameLogic = () => {
             ...prev,
             phase: 'finishing'
         }));
+    };
+
+    // Shop Functions
+    const handleBuyItem = (item: Item) => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer || currentPlayer.gold < item.value) return;
+
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p =>
+                p.id === currentPlayer.id
+                    ? {
+                        ...p,
+                        gold: p.gold - item.value,
+                        inventory: [...p.inventory, { ...item, id: Date.now().toString() + Math.random() }]
+                    }
+                    : p
+            )
+        }));
+    };
+
+    const handleSellItem = (item: Item) => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer) return;
+
+        const sellPrice = Math.floor(item.value * 0.6); // 60% of purchase price
+        const isEquipped = (() => {
+            const slot = getItemSlot(item);
+            return slot && currentPlayer.equipped[slot]?.id === item.id;
+        })();
+
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p => {
+                if (p.id === currentPlayer.id) {
+                    let newEquipped = { ...p.equipped };
+                    let newInventory = p.inventory.filter(i => i.id !== item.id);
+
+                    // If item is equipped, unequip it
+                    if (isEquipped) {
+                        const slot = getItemSlot(item);
+                        if (slot) {
+                            delete newEquipped[slot];
+                        }
+                    }
+
+                    // Create updated player for stats calculation
+                    const updatedPlayer: Player = {
+                        ...p,
+                        gold: p.gold + sellPrice,
+                        inventory: newInventory,
+                        equipped: newEquipped
+                    };
+
+                    // Update health based on new total stats if equipment changed
+                    if (isEquipped) {
+                        const newTotalStats = calculateTotalStats(updatedPlayer);
+                        return {
+                            ...updatedPlayer,
+                            maxHealth: newTotalStats.health,
+                            health: Math.min(p.health, newTotalStats.health)
+                        };
+                    }
+
+                    return updatedPlayer;
+                }
+                return p;
+            })
+        }));
+    };
+
+    const isShopAvailable = () => {
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
+        if (!currentPlayer || currentPlayer.id !== '1') {
+            return false;
+        }
+
+        // Get ordered path tiles to find the current tile
+        const pathTiles = getOrderedPathTiles(gameState.board);
+        const currentTile = pathTiles[currentPlayer.position];
+
+        if (!currentTile) {
+            return false;
+        }
+
+        // Define which tile types allow shop access
+        const allowedShopTiles = ['shop'];
+
+        return allowedShopTiles.includes(currentTile.type);
+    };
+
+    const openShop = () => {
+        // Only allow shop access if on appropriate tile
+        if (!isShopAvailable()) {
+            return;
+        }
+
+        setShowShop(true);
+    };
+
+    const closeShop = () => {
+        setShowShop(false);
     };
 
     // Battle State Handler Effect
@@ -259,7 +364,7 @@ export const useGameLogic = () => {
                 color: PLAYER_COLORS[0],
                 isActive: true,
                 isAI: false,
-                gold: 0,
+                gold: 100, // Starting gold
                 lastGoldWin: 0
             }
         ];
@@ -287,7 +392,7 @@ export const useGameLogic = () => {
                 color: PLAYER_COLORS[i],
                 isAI: true,
                 isActive: true,
-                gold: 0,
+                gold: 100, // Starting gold for AI too
                 lastGoldWin: 0
             });
         }
@@ -361,7 +466,7 @@ export const useGameLogic = () => {
                         maxHealth: maxHealth, // Update max health in case equipment changed it
                         inventory: [],
                         equipped: {},
-                        gold: 0, // Reset gold to 0
+                        gold: 100, // Reset to starting gold
                     };
                 }
                 return p;
@@ -768,6 +873,7 @@ export const useGameLogic = () => {
         isSelectingTile,
         currentReward,
         canEndTurn,
+        showShop,
 
         // Setters
         setGameMode,
@@ -784,6 +890,13 @@ export const useGameLogic = () => {
         handleUnequipItem,
         handleRewardDismiss,
         handleHeal,
+
+        // Shop functions
+        openShop,
+        closeShop,
+        isShopAvailable,
+        handleBuyItem,
+        handleSellItem,
 
         // Battle logic
         battleLogic,

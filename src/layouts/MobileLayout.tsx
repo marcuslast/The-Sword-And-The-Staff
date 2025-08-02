@@ -2,16 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useGameLogic } from '../hooks/useGameLogic';
 import MobileGameBoard from '../components/MobileGameBoard';
 import RewardDisplay from '../components/RewardDisplay';
+import MobileShop from '../components/MobileShop';
 import {
-    HealthDisplay,
-    StatsGrid,
     StatsList,
     HealthBar,
     PlayerSummary
 } from '../components/HealthDisplay';
 import {
     Sword, Shield, Crown, Gem, Star, AlertTriangle, Skull, Package,
-    Heart, Trophy, Target, Dices, User, Zap, Plus
+    Heart, Trophy, Dices, User, Zap, Plus, ShoppingCart, Coins
 } from 'lucide-react';
 import { ItemSlot } from '../types/game.types';
 import MobileBattleScreen from '../components/MobileBattleScreen';
@@ -46,7 +45,7 @@ const RARITIES = {
 
 const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
     const { gameState, gameMode, battleLogic } = props;
-    const [activeTab, setActiveTab] = useState<'game' | 'inventory' | 'stats'>('game');
+    const [activeTab, setActiveTab] = useState<'game' | 'inventory' | 'stats' | 'shop'>('game');
 
     const handleRewardClose = () => {
         props.handleRewardDismiss();
@@ -170,6 +169,10 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                     <div className="text-right">
                         <p className="text-xs text-gray-500">Position</p>
                         <p className="text-xl font-bold text-purple-600">{currentPlayer?.position}</p>
+                        <div className="flex items-center justify-end space-x-1 mt-1">
+                            <Coins size={14} className="text-yellow-500" />
+                            <span className="text-sm font-bold text-yellow-600">{currentPlayer?.gold}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -214,7 +217,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
             {/* Dice Section */}
             {gameState.phase === 'rolling' && currentPlayer?.id === '1' && (
                 <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-                    <div className="flex items-center justify-center space-x-3">
+                    <div className="flex items-center justify-center space-x-3 mb-3">
                         <button
                             onClick={props.rollDice}
                             disabled={props.diceRolling}
@@ -232,10 +235,31 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                                 <Heart size={18} />
                             </button>
                         )}
+
+                        <button
+                            onClick={props.openShop}
+                            disabled={!props.isShopAvailable}
+                            className={`font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg ${
+                                props.isShopAvailable
+                                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                            <ShoppingCart size={18} />
+                        </button>
                     </div>
 
+                    {/* Shop availability message */}
+                    {!props.isShopAvailable && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                            <p className="text-xs text-gray-600 text-center">
+                                🏪 Shop only available on certain tiles
+                            </p>
+                        </div>
+                    )}
+
                     {gameState.diceValue && (
-                        <div className="mt-3 text-center">
+                        <div className="text-center">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg">
                                 <span className="text-2xl font-bold text-white">{gameState.diceValue}</span>
                             </div>
@@ -439,6 +463,16 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 </div>
             </div>
         </div>
+    );
+
+    // Shop Content for mobile using MobileShop component
+    const ShopContent = () => (
+        <MobileShop
+            player={humanPlayer || gameState.players[0]}
+            onBuyItem={props.handleBuyItem}
+            onSellItem={props.handleSellItem}
+            onClose={() => setActiveTab('game')}
+        />
     );
 
     return (

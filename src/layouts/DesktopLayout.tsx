@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGameLogic } from '../hooks/useGameLogic';
 import GameBoard from '../components/GameBoard';
+import Shop from '../components/Shop';
 import {
     HealthBar,
     StatsGrid,
@@ -10,7 +11,7 @@ import EquipmentPanel from '../components/EquipmentPanel';
 import {
     AlertCircle, Trophy, Sword, Shield, Crown, Gem, Star,
     Heart, Skull, Package, Target, Zap, Move, User,
-    Dices, Castle, Swords, AlertTriangle, Sparkles
+    Dices, Castle, Swords, AlertTriangle, Sparkles, ShoppingCart, Coins
 } from 'lucide-react';
 import { Item } from '../types/game.types';
 import { getStatBreakdowns } from '../utils/equipmentLogic';
@@ -49,6 +50,7 @@ const CleanGameStatus: React.FC<{
     isSelectingTile: boolean;
     availableTiles: number[];
     onHeal?: () => void;
+    onOpenShop?: () => void;
 }> = ({
           gameState,
           diceRolling,
@@ -56,6 +58,7 @@ const CleanGameStatus: React.FC<{
           isSelectingTile,
           availableTiles,
           onHeal,
+          onOpenShop,
       }) => {
     const currentPlayer = gameState.players.find((p: any) => p.id === gameState.currentPlayerId);
 
@@ -83,6 +86,7 @@ const CleanGameStatus: React.FC<{
     };
 
     const statBreakdowns = getStatBreakdowns(currentPlayer);
+    const isPlayerTurn = currentPlayer.id === '1';
 
     return (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 space-y-6">
@@ -100,6 +104,10 @@ const CleanGameStatus: React.FC<{
                             {currentPlayer.username}
                         </h2>
                         <p className="text-gray-600">Position: {currentPlayer.position}</p>
+                        <div className="flex items-center justify-center space-x-2 mt-1">
+                            <Coins size={16} className="text-yellow-500" />
+                            <span className="font-bold text-yellow-600">{currentPlayer.gold} gold</span>
+                        </div>
                     </div>
                 </div>
                 <p className="text-lg text-gray-700 bg-gray-50 rounded-lg px-4 py-2">
@@ -131,19 +139,32 @@ const CleanGameStatus: React.FC<{
                 </div>
             )}
 
-            {/* Heal Button */}
-            {gameState.phase === 'rolling' && currentPlayer.id === '1' &&
-                currentPlayer.health < statBreakdowns.health.total && onHeal && (
-                    <div className="text-center">
+            {/* Action Buttons */}
+            {gameState.phase === 'rolling' && isPlayerTurn && (
+                <div className="flex space-x-3">
+                    {/* Heal Button */}
+                    {currentPlayer.health < statBreakdowns.health.total && onHeal && (
                         <button
                             onClick={onHeal}
-                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg transform hover:scale-105"
+                            className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg transform hover:scale-105"
                         >
                             <Heart className="inline mr-2" size={20} />
                             Heal 33%
                         </button>
-                    </div>
-                )}
+                    )}
+
+                    {/* Shop Button */}
+                    {onOpenShop && (
+                        <button
+                            onClick={onOpenShop}
+                            className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg transform hover:scale-105"
+                        >
+                            <ShoppingCart className="inline mr-2" size={20} />
+                            Shop
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Tile Selection Info */}
             {isSelectingTile && (
@@ -185,6 +206,40 @@ const CleanGameStatus: React.FC<{
                         <div className="text-xs text-gray-600">Gold</div>
                     </div>
                 </div>
+
+                {/* Equipment bonus summary */}
+                {(statBreakdowns.attack.bonus > 0 || statBreakdowns.defense.bonus > 0 ||
+                    statBreakdowns.health.bonus > 0 || statBreakdowns.speed.bonus > 0) && (
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                        <h4 className="font-semibold text-sm mb-2 text-green-800">🛡️ Equipment Bonuses</h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            {statBreakdowns.health.bonus > 0 && (
+                                <div className="flex justify-between text-green-700">
+                                    <span>❤️ Health:</span>
+                                    <span className="font-bold">+{statBreakdowns.health.bonus}</span>
+                                </div>
+                            )}
+                            {statBreakdowns.attack.bonus > 0 && (
+                                <div className="flex justify-between text-green-700">
+                                    <span>⚔️ Attack:</span>
+                                    <span className="font-bold">+{statBreakdowns.attack.bonus}</span>
+                                </div>
+                            )}
+                            {statBreakdowns.defense.bonus > 0 && (
+                                <div className="flex justify-between text-green-700">
+                                    <span>🛡️ Defense:</span>
+                                    <span className="font-bold">+{statBreakdowns.defense.bonus}</span>
+                                </div>
+                            )}
+                            {statBreakdowns.speed.bonus > 0 && (
+                                <div className="flex justify-between text-green-700">
+                                    <span>👟 Speed:</span>
+                                    <span className="font-bold">+{statBreakdowns.speed.bonus}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -443,6 +498,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                             isSelectingTile={props.isSelectingTile}
                             availableTiles={props.availableTiles}
                             onHeal={props.handleHeal}
+                            onOpenShop={props.openShop}
                         />
 
                         <EquipmentPanel
@@ -472,6 +528,15 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                         </div>
                     </div>
                 </div>
+
+                {/* Shop Modal */}
+                <Shop
+                    isOpen={props.showShop}
+                    onClose={props.closeShop}
+                    player={currentPlayer}
+                    onBuyItem={props.handleBuyItem}
+                    onSellItem={props.handleSellItem}
+                />
 
                 {/* Reward Display */}
                 <RewardDisplay
