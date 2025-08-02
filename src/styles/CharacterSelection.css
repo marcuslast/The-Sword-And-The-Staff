@@ -193,3 +193,25 @@
         height: 120px;
     }
 }
+
+.character-selection-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+}
+
+.character-grid {
+    width: 100%;
+    padding: 0;
+}
+
+.grid-content {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.character-card {
+    width: 100%;
+}

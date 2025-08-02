@@ -193,23 +193,23 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-60" />
                 <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full">
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full mx-2">
                         <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Game Setup</h2>
                         <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Enter your name"
-                                value={props.playerSetup.name}
-                                onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            />
+                            <div className="w-full -mx-2">
+                                <CharacterSelection
+                                    selectedCharacter={props.playerSetup.character}
+                                    onSelect={(character) => props.setPlayerSetup({...props.playerSetup, character})}
+                                />
 
-                            {/* Add CharacterSelection component here */}
-                            <CharacterSelection
-                                selectedCharacter={props.playerSetup.character}
-                                onSelect={(character) => props.setPlayerSetup({...props.playerSetup, character})}
-                                onConfirm={() => {}} // Optional confirm handler if needed
-                            />
+                                <input
+                                    type="text"
+                                    placeholder="Enter your Character name"
+                                    value={props.playerSetup.name}
+                                    onChange={(e) => props.setPlayerSetup({...props.playerSetup, name: e.target.value})}
+                                    className="m-2 w-full text-center p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                            </div>
 
                             <select
                                 value={props.playerSetup.playerCount}
@@ -222,7 +222,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = (props) => {
                             </select>
                             <button
                                 onClick={props.startGame}
-                                disabled={!props.playerSetup.name.trim()}
+                                disabled={!props.playerSetup.name.trim() || !props.playerSetup.character}
                                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Start Game

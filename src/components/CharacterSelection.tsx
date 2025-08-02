@@ -7,13 +7,11 @@ import '../styles/CharacterSelection.css';
 interface CharacterSelectionProps {
     selectedCharacter: CharacterType;
     onSelect: (character: CharacterType) => void;
-    onConfirm: () => void;
 }
 
 const CharacterSelection: React.FC<CharacterSelectionProps> = ({
                                                                    selectedCharacter,
-                                                                   onSelect,
-                                                                   onConfirm
+                                                                   onSelect
                                                                }) => {
     const [activeGender, setActiveGender] = useState<'male' | 'female'>('male');
 
@@ -96,16 +94,6 @@ const CharacterSelection: React.FC<CharacterSelectionProps> = ({
                     </motion.div>
                 </AnimatePresence>
             </div>
-
-            <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="confirm-button"
-                onClick={onConfirm}
-                disabled={!selectedCharacter}
-            >
-                Confirm Selection
-            </motion.button>
         </div>
     );
 };

@@ -616,7 +616,6 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                         <CharacterSelection
                             selectedCharacter={props.playerSetup.character}
                             onSelect={(character) => props.setPlayerSetup({...props.playerSetup, character})}
-                            onConfirm={() => {}}
                         />
 
                         <select
@@ -630,7 +629,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = (props) => {
                         </select>
                         <button
                             onClick={props.startGame}
-                            disabled={!props.playerSetup.name.trim()}
+                            disabled={!props.playerSetup.name.trim() || !props.playerSetup.character}
                             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg shadow-lg transform hover:scale-105 disabled:transform-none"
                         >
                             Start Game
