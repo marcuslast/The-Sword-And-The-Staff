@@ -5,10 +5,14 @@ import MobileLayout from '../layouts/MobileLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthButton } from './Auth/AuthButton';
 import CharacterSelection from './CharacterSelection';
+import useRealmLogic from "../realm/hooks/useRealmLogic";
+import GameCompleteRewards from './GameCompleteRewards';
+import Realm from '../realm/components/Realm'; // Add this import
 
 const BoardGameUnified: React.FC = () => {
     const [isMobile, setIsMobile] = useState(false);
     const gameLogic = useGameLogic();
+    const realmLogic = useRealmLogic();
     const { isAuthenticated, user } = useAuth();
 
     useEffect(() => {
@@ -44,7 +48,7 @@ const BoardGameUnified: React.FC = () => {
                         <h1 className="text-2xl font-bold text-white mb-2">The Sword and The Staff</h1>
                         <p className="text-purple-200">The Last Adventure Begin</p>
 
-                        {/* User greeting if authenticated */}
+                        {/* User greeting with enhanced stats */}
                         {isAuthenticated && user && (
                             <div className="mt-4 p-3 bg-white/20 backdrop-blur rounded-lg">
                                 <p className="text-white text-sm">Welcome back,</p>
@@ -53,6 +57,13 @@ const BoardGameUnified: React.FC = () => {
                                     <span>Games: {user.gameStats.gamesPlayed}</span>
                                     <span>Wins: {user.gameStats.gamesWon}</span>
                                 </div>
+                                {/* Show realm stats if available */}
+                                {realmLogic.inventory && (
+                                    <div className="flex justify-center space-x-4 mt-1 text-xs text-yellow-200">
+                                        <span>💰 {realmLogic.inventory.gold.toLocaleString()}</span>
+                                        <span>🔮 {realmLogic.getTotalOrbs()}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -69,10 +80,19 @@ const BoardGameUnified: React.FC = () => {
                                 </button>
 
                                 <button
-                                    onClick={() => gameLogic.setGameMode('realm')}
-                                    className="w-full py-4 bg-gradient-to-r from-blue-400 to-red-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                    onClick={() => {
+                                        gameLogic.setGameMode('realm');
+                                        realmLogic.setRealmMode('home');
+                                    }}
+                                    className="w-full py-4 bg-gradient-to-r from-blue-400 to-red-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 relative"
                                 >
                                     Enter Your Realm
+                                    {/* Show orb count badge */}
+                                    {realmLogic.hasOrbs && (
+                                        <div className="absolute -top-2 -right-2 bg-yellow-400 text-purple-900 text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                                            {realmLogic.getTotalOrbs()}
+                                        </div>
+                                    )}
                                 </button>
                             </>
                         ) : (
@@ -83,7 +103,8 @@ const BoardGameUnified: React.FC = () => {
                                     <ul className="text-left space-y-1">
                                         <li>• Save your game progress</li>
                                         <li>• Track your victories</li>
-                                        <li>• Invite friends to play</li>
+                                        <li>• Earn crystal orbs and gold</li>
+                                        <li>• Access your personal realm</li>
                                         <li>• Join the leaderboard</li>
                                     </ul>
                                 </div>
@@ -91,15 +112,16 @@ const BoardGameUnified: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Game instructions */}
+                    {/* Updated game instructions */}
                     <div className="mt-8 p-4 bg-white/10 backdrop-blur rounded-2xl">
                         <h3 className="font-bold text-white mb-2">How to Play</h3>
                         <ul className="space-y-1 text-purple-200 text-sm">
                             <li>🎲 Roll dice to move along the path</li>
                             <li>⚔️ Equip items and battle enemies</li>
-                            <li>💰 Collect rewards and upgrade gear</li>
-                            <li>💰 Buy and sell in the shop</li>
+                            <li>💰 Collect gold and upgrade gear</li>
+                            <li>🏪 Buy and sell in the shop</li>
                             <li>🏰 First to reach the castle wins!</li>
+                            <li>🎁 Win to earn realm rewards!</li>
                         </ul>
                     </div>
                 </div>
@@ -191,7 +213,64 @@ const BoardGameUnified: React.FC = () => {
         );
     }
 
-    // Return the appropriate layout based on device type
+    // Realm mode - render the Realm component
+    if (gameLogic.gameMode === 'realm') {
+        return (
+            <Realm
+                onBack={() => gameLogic.setGameMode('menu')}
+            />
+        );
+    }
+
+    // Game playing mode
+    if (gameLogic.gameMode === 'playing') {
+        const gameComponent = isMobile ?
+            <MobileLayout {...gameLogic} /> :
+            <DesktopLayout {...gameLogic} />;
+
+        return (
+            <>
+                {gameComponent}
+
+                {/* 🧪 TEST VICTORY BUTTON */}
+                {process.env.NODE_ENV === 'development' && (
+                    <button
+                        onClick={() => {
+                            const humanPlayer = gameLogic.gameState.players.find(p => p.id === '1');
+                            if (humanPlayer) {
+                                console.log('🧪 Testing victory with rewards...');
+                                gameLogic.handleGameVictory({
+                                    ...humanPlayer,
+                                    gold: humanPlayer.gold + 250,
+                                    stats: {
+                                        ...humanPlayer.stats,
+                                        goldCollected: 300
+                                    }
+                                });
+                            }
+                        }}
+                        className="fixed top-4 left-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold z-50"
+                    >
+                        🧪 Test Victory
+                    </button>
+                )}
+
+                {/* Game Complete Rewards Modal */}
+                <GameCompleteRewards
+                    isVisible={gameLogic.showGameCompleteRewards}
+                    rewards={gameLogic.gameCompleteRewards}
+                    onDismiss={gameLogic.dismissGameCompleteRewards}
+                    onGoToRealm={() => {
+                        gameLogic.dismissGameCompleteRewards();
+                        gameLogic.setGameMode('realm');
+                        realmLogic.setRealmMode('orbs');
+                    }}
+                />
+            </>
+        );
+    }
+
+    // Return the appropriate layout based on device type and mode
     if (isMobile) {
         return <MobileLayout {...gameLogic} />;
     } else {

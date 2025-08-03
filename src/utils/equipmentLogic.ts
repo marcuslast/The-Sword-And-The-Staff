@@ -2,54 +2,23 @@ import { Item, Player, PlayerStats, EquipmentSlots, ItemSlot } from '../types/ga
 
 // Map item icons to equipment slots
 export const getItemSlot = (item: Item): ItemSlot | null => {
-    const iconToSlotMap: Record<string, ItemSlot> = {
-        // Weapons
-        'sword': 'weapon',
-        'dagger': 'weapon',
-        'bow': 'weapon',
-        'club': 'weapon',
-        'spear': 'weapon',
-        'mace': 'weapon',
-        'axe': 'weapon',
-        'staff': 'weapon',
-        'hammer': 'weapon',
-        'wand': 'weapon',
-        'scythe': 'weapon',
-        'glaive': 'weapon',
-        'halberd': 'weapon',
-        'crossbow': 'weapon',
-        'flail': 'weapon',
-        'greatsword': 'weapon',
-        'gem': 'weapon', // Special weapons like Eternal Gem
-
-        // Armor pieces
-        'armor': 'armor',
-        'robe': 'armor',
-
-        // Other equipment
-        'helmet': 'helmet',
-        'crown': 'helmet',
-        'shield': 'shield',
-        'gloves': 'gloves',
-        'boots': 'boots',
-        'cloak': 'cloak',
-        'bracers': 'accessory',
-        'belt': 'accessory',
-        'pauldrons': 'accessory',
-        'greaves': 'accessory',
-        'mask': 'accessory',
-    };
-
-    // Traps, potions, consumables cannot be equipped
-    if (item.type === 'trap' || item.type === 'potion' || item.type === 'consumable') {
-        return null;
+    switch (item.type) {
+        case 'weapon':
+            return 'weapon';
+        case 'armor':
+            return 'armor';
+        default:
+            return null;
     }
-
-    return iconToSlotMap[item.icon] || null;
 };
 
 // Calculate equipment bonuses separately from base stats
 export const calculateEquipmentBonuses = (player: Player): PlayerStats => {
+    // Safety check for undefined player or equipped property
+    if (!player || !player.equipped) {
+        return { attack: 0, defense: 0, health: 0, speed: 0 };
+    }
+
     const bonuses: PlayerStats = {
         attack: 0,
         defense: 0,
@@ -89,17 +58,29 @@ export const calculateEquipmentBonuses = (player: Player): PlayerStats => {
 
 // Calculate total stats from base stats + equipment
 export const calculateTotalStats = (player: Player): PlayerStats => {
-    const bonuses = calculateEquipmentBonuses(player);
+    // Safety check for undefined player or player properties
+    if (!player || !player.baseStats) {
+        return { attack: 10, defense: 10, health: 100, speed: 10 };
+    }
+
+    const baseStats = player.baseStats;
+    const equipmentBonuses = calculateEquipmentBonuses(player);
 
     return {
-        attack: player.baseStats.attack + bonuses.attack,
-        defense: player.baseStats.defense + bonuses.defense,
-        health: player.baseStats.health + bonuses.health,
-        speed: player.baseStats.speed + bonuses.speed
+        attack: baseStats.attack + equipmentBonuses.attack,
+        defense: baseStats.defense + equipmentBonuses.defense,
+        health: baseStats.health + equipmentBonuses.health,
+        speed: baseStats.speed + equipmentBonuses.speed
     };
 };
 
 // Get detailed stat breakdown for UI display
+export interface StatBreakdown {
+    base: number;
+    bonus: number;
+    total: number;
+}
+
 export interface StatBreakdown {
     base: number;
     bonus: number;
@@ -112,33 +93,45 @@ export const getStatBreakdowns = (player: Player): {
     health: StatBreakdown;
     speed: StatBreakdown;
 } => {
-    const bonuses = calculateEquipmentBonuses(player);
+    // Safety check for undefined player
+    if (!player || !player.baseStats) {
+        return {
+            attack: { base: 10, bonus: 0, total: 10 },
+            defense: { base: 10, bonus: 0, total: 10 },
+            health: { base: 100, bonus: 0, total: 100 },
+            speed: { base: 10, bonus: 0, total: 10 }
+        };
+    }
+
+    const base = player.baseStats;
+    const equipment = calculateEquipmentBonuses(player);
+    const total = calculateTotalStats(player);
 
     return {
         attack: {
-            base: player.baseStats.attack,
-            bonus: bonuses.attack,
-            total: player.baseStats.attack + bonuses.attack
+            base: base.attack,
+            bonus: equipment.attack,
+            total: total.attack
         },
         defense: {
-            base: player.baseStats.defense,
-            bonus: bonuses.defense,
-            total: player.baseStats.defense + bonuses.defense
+            base: base.defense,
+            bonus: equipment.defense,
+            total: total.defense
         },
         health: {
-            base: player.baseStats.health,
-            bonus: bonuses.health,
-            total: player.baseStats.health + bonuses.health
+            base: base.health,
+            bonus: equipment.health,
+            total: total.health
         },
         speed: {
-            base: player.baseStats.speed,
-            bonus: bonuses.speed,
-            total: player.baseStats.speed + bonuses.speed
+            base: base.speed,
+            bonus: equipment.speed,
+            total: total.speed
         }
     };
 };
 
-// Compare two items
+
 export const compareItems = (currentItem: Item | undefined, newItem: Item): {
     attack: number;
     defense: number;

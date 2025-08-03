@@ -15,6 +15,8 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ player, onEquipItem, on
     const [hoveredItem, setHoveredItem] = useState<Item | null>(null);
     const [hoveredSlot, setHoveredSlot] = useState<ItemSlot | null>(null);
 
+    if (!player) return null;
+
     const statBreakdowns = getStatBreakdowns(player);
 
     const slotIcons: Record<ItemSlot, React.ReactNode> = {

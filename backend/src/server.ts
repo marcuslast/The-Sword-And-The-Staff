@@ -7,6 +7,7 @@ import { connectDB } from './config/database';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import gameRoutes from './routes/games';
+import orbRoutes from './routes/orbs';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -40,6 +41,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/games', gameRoutes);
+app.use('/api/orbs', orbRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

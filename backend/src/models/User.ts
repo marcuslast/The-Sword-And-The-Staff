@@ -1,6 +1,14 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface UserResources {
+    food: number;
+    wood: number;
+    stone: number;
+    iron: number;
+    gems: number;
+}
+
 export interface IUser extends Document {
     _id: mongoose.Types.ObjectId;
     username: string;
@@ -15,7 +23,19 @@ export interface IUser extends Document {
         gamesWon: number;
         totalBattlesWon: number;
         totalGoldCollected: number;
+        totalOrbsOpened: number;
     };
+    inventory: {
+        gold: { type: Number, default: 0 },
+        orbsCount: {
+            common: { type: Number, default: 0 },
+            uncommon: { type: Number, default: 0 },
+            rare: { type: Number, default: 0 },
+            veryRare: { type: Number, default: 0 },
+            legendary: { type: Number, default: 0 }
+        },
+        resources: UserResources
+    }
     friends: mongoose.Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
@@ -80,6 +100,55 @@ const UserSchema = new Schema<IUser>({
         totalGoldCollected: {
             type: Number,
             default: 0
+        },
+        totalOrbsOpened: {
+            type: Number,
+            default: 0
+        }
+    },
+    inventory: {
+        gold: {
+            type: Number,
+            default: 100
+        },
+        orbsCount: {
+            common: {
+                type: Number,
+                default: 0
+            },
+            uncommon: {
+                type: Number,
+                default: 0
+            },
+            rare: {
+                type: Number,
+                default: 0
+            },
+            veryRare: {
+                type: Number,
+                default: 0
+            },
+            legendary: {
+                type: Number,
+                default: 0
+            }
+        },
+        resources: {
+            food: {
+                type: Number,
+            },
+            wood: {
+                type: Number,
+            },
+            stone: {
+                type: Number,
+            },
+            iron: {
+                type: Number,
+            },
+            gems: {
+                type: Number,
+            }
         }
     },
     friends: [{

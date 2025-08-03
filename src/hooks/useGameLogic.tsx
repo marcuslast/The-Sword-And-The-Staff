@@ -12,6 +12,7 @@ import { PLAYER_COLORS } from '../utils/gameData';
 import { getItemSlot, calculateTotalStats } from '../utils/equipmentLogic';
 import { BattleState } from '../types/game.types';
 import { useBattleLogic } from './useBattleLogic';
+import useRealmLogic from "../realm/hooks/useRealmLogic";
 
 export const useGameLogic = () => {
     const [gameMode, setGameMode] = useState<'menu' | 'setup' | 'playing' | 'realm'>('menu');
@@ -41,6 +42,11 @@ export const useGameLogic = () => {
     const [showShop, setShowShop] = useState(false);
 
     const battleLogic = useBattleLogic();
+
+    // realm
+    const realmLogic = useRealmLogic();
+    const [showGameCompleteRewards, setShowGameCompleteRewards] = useState(false);
+    const [gameCompleteRewards, setGameCompleteRewards] = useState<any>(null);
 
     const handleRewardDismiss = () => {
         setCurrentReward(null);
@@ -607,8 +613,58 @@ export const useGameLogic = () => {
         }, 500);
     };
 
+    const handleGameVictory = async (winningPlayer: Player) => {
+        try {
+            // Set winner in game state
+            setGameState(prev => ({
+                ...prev,
+                winner: winningPlayer,
+                phase: 'game_over'
+            }));
 
-    const handleTileEffect = (tile: Tile, player: Player) => {
+            // Only give realm rewards to human player
+            if (winningPlayer.id === '1') {
+                console.log('💰 Calculating rewards...');
+
+                // Calculate gold collected (player starts with 100, anything above that is collected)
+                const goldCollected = Math.max(0, winningPlayer.gold - 100);
+
+                console.log('🔮 Awarding rewards:', { goldCollected, orbs: 2 });
+
+                // Try to award realm rewards
+                try {
+                    const rewardsResult = await realmLogic.completeGame({
+                        goldCollected: goldCollected,
+                        orbsToAward: 2
+                    });
+
+                    if (rewardsResult.success) {
+                        console.log('✅ Rewards awarded successfully!', rewardsResult.rewards);
+                        setGameCompleteRewards(rewardsResult.rewards);
+                        setShowGameCompleteRewards(true);
+                    } else {
+                        console.error('❌ Failed to award rewards:', rewardsResult.error);
+                    }
+                } catch (apiError) {
+                    console.error('💥 API Error:', apiError);
+                }
+            }
+        } catch (error) {
+            console.error('💥 Victory handling error:', error);
+        }
+    };
+
+    const dismissGameCompleteRewards = () => {
+        console.log('👋 Dismissing game complete rewards');
+        setShowGameCompleteRewards(false);
+        setGameCompleteRewards(null);
+        realmLogic.clearLastGameRewards();
+    };
+
+
+    const handleTileEffect = async (tile: Tile, player: Player) => {
+        console.log('🎯 Processing tile effect:', tile.type, 'for player:', player.username);
+
         switch (tile.type) {
             case 'battle':
                 if (tile.enemy) {
@@ -647,12 +703,8 @@ export const useGameLogic = () => {
                 break;
 
             case 'castle':
-                // Player reached the castle - they win!
-                setGameState(prev => ({
-                    ...prev,
-                    winner: player,
-                    phase: 'game_over'
-                }));
+                console.log('🏰 VICTORY! Player reached castle:', player.username);
+                await handleGameVictory(player);
                 break;
 
             default:
@@ -960,5 +1012,14 @@ export const useGameLogic = () => {
             const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayerId);
             return currentPlayer ? getBattleItems(currentPlayer.inventory) : [];
         },
+
+        // New realm integration values
+        realmLogic,
+        showGameCompleteRewards,
+        gameCompleteRewards,
+        dismissGameCompleteRewards,
+
+        handleGameVictory,
     };
 };
+
