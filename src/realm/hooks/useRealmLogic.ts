@@ -85,7 +85,7 @@ const useRealmLogic = () => {
 
             setOrbs(data.orbs);
             setInventory(data.summary);
-
+            await getRecentOpenings();
             return data;
 
         } catch (error) {
@@ -233,21 +233,6 @@ const useRealmLogic = () => {
             // Remove opened orb from list
             setOrbs(prev => prev.filter(orb => orb.id !== orbId));
 
-            // Add to recent openings
-            if (response.orb) {
-                const newOpening: RecentOpening = {
-                    rarity: response.orb.rarity,
-                    contents: response.orb.contents,
-                    timestamp: Date.now(),
-                    id: `${orbId}-${Date.now()}`
-                };
-
-                setRecentOpenings(prev => [
-                    newOpening,
-                    ...prev.slice(0, 4) // Keep only last 5
-                ]);
-            }
-
             return true;
 
         } catch (error) {
@@ -279,19 +264,6 @@ const useRealmLogic = () => {
 
                 // Remove orb from list
                 setOrbs(prev => prev.filter(orb => orb.id !== orbId));
-
-                // Add to recent openings
-                const newOpening: RecentOpening = {
-                    rarity,
-                    contents,
-                    timestamp: Date.now(),
-                    id: `${orbId}-${Date.now()}`
-                };
-
-                setRecentOpenings(prev => [
-                    newOpening,
-                    ...prev.slice(0, 4)
-                ]);
 
                 setError('⚠️ Orb opened locally - backend not available');
                 return true;
@@ -331,21 +303,6 @@ const useRealmLogic = () => {
                 return [...remainingOrbs, ...keptOrbs];
             });
 
-            // Add to recent openings
-            if (response.results) {
-                const newOpenings: RecentOpening[] = response.results.map((result, index) => ({
-                    rarity: result.rarity,
-                    contents: result.contents,
-                    timestamp: Date.now() + index, // Slight offset for unique timestamps
-                    id: `multi-${rarity}-${Date.now()}-${index}`
-                }));
-
-                setRecentOpenings(prev => [
-                    ...newOpenings,
-                    ...prev.slice(0, 5 - newOpenings.length)
-                ]);
-            }
-
             return true;
 
         } catch (error) {
@@ -353,6 +310,27 @@ const useRealmLogic = () => {
             const errorMessage = error instanceof Error ? error.message : 'Failed to open multiple orbs';
             setError(errorMessage);
             return false;
+        }
+    };
+
+    const getRecentOpenings = async () => {
+        try {
+            const data = await orbAPI.getRecentlyOpenedOrbs();
+
+            // Transform the Orb[] into RecentOpening[]
+            const transformedOpenings = data.orbs
+                .filter(orb => orb.isOpened && orb.openedAt && orb.contents) // Only include opened orbs with required data
+                .map(orb => ({
+                    id: orb.id,
+                    rarity: orb.rarity,
+                    contents: orb.contents!,
+                    timestamp: new Date(orb.openedAt!).getTime()
+                }));
+
+            setRecentOpenings(transformedOpenings);
+        } catch (error) {
+            console.error('Failed to load recent openings:', error);
+            setError('Failed to load recent openings');
         }
     };
 
@@ -395,18 +373,6 @@ const useRealmLogic = () => {
         initializeRealm();
     }, []);
 
-    // Clean up old recent openings (older than 10 minutes)
-    useEffect(() => {
-        const cleanup = setInterval(() => {
-            const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-            setRecentOpenings(prev =>
-                prev.filter(opening => opening.timestamp > tenMinutesAgo)
-            );
-        }, 60000); // Check every minute
-
-        return () => clearInterval(cleanup);
-    }, []);
-
     return {
         // State
         realmMode,
@@ -438,6 +404,7 @@ const useRealmLogic = () => {
         clearRecentOpenings,
         clearLastGameRewards,
         clearError,
+        getRecentOpenings,
 
         // Computed values
         isLoading: loading || completingGame,

@@ -132,6 +132,11 @@ class OrbAPI {
         });
     }
 
+    async getRecentlyOpenedOrbs(limit: number = 5): Promise<OrbsResponse> {
+        const queryParam = limit ? '' : '?limit=5';
+        return this.request<OrbsResponse>(`${queryParam}`);
+    }
+
     // Get orb statistics (optional - for future use)
     async getStats(): Promise<{
         totalOpened: number;

@@ -280,9 +280,9 @@ router.put('/profile', auth, async (req: Request, res: Response) => {
 
         const user = await User.findByIdAndUpdate(
             req.user?.userId,
-            value,
+            { $set: value },  // Explicitly use $set operator
             { new: true, runValidators: true }
-        ) as IUser | null;
+        ).lean() as Omit<IUser, 'password'> | null;
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
