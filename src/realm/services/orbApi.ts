@@ -33,6 +33,13 @@ export interface UserInventory {
         veryRare: number;
         legendary: number;
     };
+    resources?: {
+        food: number;
+        wood: number;
+        stone: number;
+        iron: number;
+        gems: number;
+    };
 }
 
 export interface OrbsResponse {

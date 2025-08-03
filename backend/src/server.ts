@@ -8,7 +8,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import gameRoutes from './routes/games';
 import orbRoutes from './routes/orbs';
-import realmRoutes from './routes/realm';
+import townRoutes from './routes/town'; // Add this import
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -43,7 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/orbs', orbRoutes);
-app.use('/api/realm', realmRoutes);
+app.use('/api/town', townRoutes); // Add this line
 
 // Health check
 app.get('/api/health', (req, res) => {

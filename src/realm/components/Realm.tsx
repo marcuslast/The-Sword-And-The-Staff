@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthButton } from '../../components/Auth/AuthButton';
 import useRealmLogic from '../hooks/useRealmLogic';
 import { OrbRarity } from '../services/orbApi';
+import Town from './Town';
 
 const RARITY_COLORS: Record<OrbRarity, string> = {
     'common': 'from-gray-400 to-gray-600',
@@ -27,6 +28,8 @@ interface RealmProps {
 const Realm: React.FC<RealmProps> = ({ onBack }) => {
     const { user } = useAuth();
     const realmLogic = useRealmLogic();
+    // Use simple boolean state instead of string literals
+    const [showTown, setShowTown] = useState(false);
 
     // Load inventory on component mount with proper error handling
     useEffect(() => {
@@ -76,6 +79,11 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
         );
     }
 
+    // Render town view - simple boolean check
+    if (showTown) {
+        return <Town onBack={() => setShowTown(false)} />;
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
             {/* Authentication Button in top right */}
@@ -98,7 +106,33 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-5xl font-bold text-white mb-4">🏰 Your Realm</h1>
-                    <p className="text-purple-200 text-lg">Open crystal orbs to discover treasures!</p>
+                    <p className="text-purple-200 text-lg">Manage your realm and discover treasures!</p>
+
+                    {/* Navigation Tabs - using boolean state */}
+                    <div className="flex justify-center mt-6 mb-4">
+                        <div className="bg-white/10 backdrop-blur rounded-lg p-1 flex">
+                            <button
+                                onClick={() => setShowTown(false)}
+                                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                                    !showTown
+                                        ? 'bg-purple-600 text-white shadow-lg'
+                                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                🔮 Crystal Orbs
+                            </button>
+                            <button
+                                onClick={() => setShowTown(true)}
+                                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                                    showTown
+                                        ? 'bg-green-600 text-white shadow-lg'
+                                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                🏘️ Your Town
+                            </button>
+                        </div>
+                    </div>
 
                     {user && (
                         <div className="mt-4 p-4 bg-white/20 backdrop-blur rounded-lg inline-block">
@@ -113,6 +147,22 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                                         <span>🔮</span>
                                         <span>{realmLogic.getTotalOrbs()} Orbs</span>
                                     </div>
+                                    {realmLogic.inventory.resources && Object.keys(realmLogic.inventory.resources).length > 0 && (
+                                        <div className="flex items-center space-x-4">
+                                            {Object.entries(realmLogic.inventory.resources).map(([resource, amount]) => (
+                                                <div key={resource} className="flex items-center space-x-1">
+                                                    <span>{
+                                                        resource === 'wood' ? '🪵' :
+                                                            resource === 'stone' ? '🗿' :
+                                                                resource === 'iron' ? '⚒️' :
+                                                                    resource === 'food' ? '🌾' :
+                                                                        resource === 'gems' ? '💎' : '📦'
+                                                    }</span>
+                                                    <span className="font-bold">{amount}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -289,6 +339,7 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                             <li>🏆 Higher rarity orbs contain more gold and better rewards</li>
                             <li>💎 Legendary orbs are extremely rare but contain amazing treasures</li>
                             <li>🔮 Open multiple orbs of the same rarity for efficiency</li>
+                            <li>🏘️ Use resources from orbs to build and upgrade your town!</li>
                         </ul>
                     </div>
                 </div>

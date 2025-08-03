@@ -26,16 +26,16 @@ export interface IUser extends Document {
         totalOrbsOpened: number;
     };
     inventory: {
-        gold: { type: Number, default: 0 },
+        gold: number;
         orbsCount: {
-            common: { type: Number, default: 0 },
-            uncommon: { type: Number, default: 0 },
-            rare: { type: Number, default: 0 },
-            veryRare: { type: Number, default: 0 },
-            legendary: { type: Number, default: 0 }
-        },
-        resources: UserResources
-    }
+            common: number;
+            uncommon: number;
+            rare: number;
+            veryRare: number;
+            legendary: number;
+        };
+        resources: UserResources;
+    };
     friends: mongoose.Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
@@ -136,18 +136,23 @@ const UserSchema = new Schema<IUser>({
         resources: {
             food: {
                 type: Number,
+                default: 50  // Starting resources
             },
             wood: {
                 type: Number,
+                default: 100 // More wood to start building
             },
             stone: {
                 type: Number,
+                default: 75
             },
             iron: {
                 type: Number,
+                default: 25
             },
             gems: {
                 type: Number,
+                default: 0
             }
         }
     },
@@ -169,6 +174,37 @@ const UserSchema = new Schema<IUser>({
 UserSchema.index({ username: 1 });
 UserSchema.index({ email: 1 });
 UserSchema.index({ isOnline: 1 });
+
+// Pre-save middleware to ensure resources are initialized
+UserSchema.pre('save', function(this: IUser, next) {
+    // Initialize resources if they don't exist
+    if (!this.inventory.resources) {
+        this.inventory.resources = {
+            food: 50,
+            wood: 100,
+            stone: 75,
+            iron: 25,
+            gems: 0
+        };
+    }
+
+    // Ensure all resource properties exist
+    const defaultResources = {
+        food: 50,
+        wood: 100,
+        stone: 75,
+        iron: 25,
+        gems: 0
+    };
+
+    for (const [resource, defaultValue] of Object.entries(defaultResources)) {
+        if (this.inventory.resources[resource as keyof UserResources] === undefined) {
+            (this.inventory.resources[resource as keyof UserResources] as number) = defaultValue;
+        }
+    }
+
+    next();
+});
 
 // Hash password before saving
 UserSchema.pre('save', async function(this: IUser, next) {

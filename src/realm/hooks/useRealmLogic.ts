@@ -1,7 +1,26 @@
 import { useState, useEffect } from 'react';
-import { orbAPI, Orb, UserInventory, OrbOpenResponse, OrbRarity, OrbContents, OrbItem } from '../services/orbApi';
+import { orbAPI, Orb, OrbOpenResponse, OrbRarity, OrbContents, OrbItem } from '../services/orbApi';
+
+export interface UserInventory {
+    gold: number;
+    orbsCount: {
+        common: number;
+        uncommon: number;
+        rare: number;
+        veryRare: number;
+        legendary: number;
+    };
+    resources?: {
+        food: number;
+        wood: number;
+        stone: number;
+        iron: number;
+        gems: number;
+    };
+}
 
 export type RealmMode = 'home' | 'inventory' | 'map' | 'orbs';
+export type RealmView = 'orbs' | 'town';
 
 export interface RecentOpening {
     rarity: string;
