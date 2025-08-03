@@ -1,8 +1,13 @@
 import React from 'react';
-import QuizBoardGameUnified from './components/QuizBoardGameUnified';
+import { AuthProvider } from './contexts/AuthContext';
+import BoardGameUnified from './components/BoardGameUnified';
 
 function App() {
-  return <QuizBoardGameUnified />;
+  return (
+      <AuthProvider>
+        <BoardGameUnified />
+      </AuthProvider>
+  );
 }
 
 export default App;

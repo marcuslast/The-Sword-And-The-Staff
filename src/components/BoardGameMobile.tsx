@@ -287,7 +287,7 @@ const MobileInventoryItem: React.FC<{
 };
 
 // Main Mobile Game Component
-export const QuizBoardGameMobile: React.FC = () => {
+export const BoardGameMobile: React.FC = () => {
     // Game state
     const [gameMode, setGameMode] = useState<'menu' | 'setup' | 'playing'>('menu');
     const [players, setPlayers] = useState<Player[]>([]);
@@ -1364,4 +1364,4 @@ export const QuizBoardGameMobile: React.FC = () => {
     return null;
 };
 
-export default QuizBoardGameMobile;
+export default BoardGameMobile;

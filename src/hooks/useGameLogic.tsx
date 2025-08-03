@@ -14,7 +14,7 @@ import { BattleState } from '../types/game.types';
 import { useBattleLogic } from './useBattleLogic';
 
 export const useGameLogic = () => {
-    const [gameMode, setGameMode] = useState<'menu' | 'setup' | 'playing'>('menu');
+    const [gameMode, setGameMode] = useState<'menu' | 'setup' | 'playing' | 'realm'>('menu');
     const [players, setPlayers] = useState<Player[]>([]);
     const [gameState, setGameState] = useState<GameState>({
         players: [],
