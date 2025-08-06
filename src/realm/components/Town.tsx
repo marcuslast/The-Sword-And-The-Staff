@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AuthButton } from '../../components/Auth/AuthButton';
 import useTownLogic from '../hooks/useTownLogic';
 import useRealmLogic from '../hooks/useRealmLogic';
+import {ThreeProvider} from "../contexts/ThreeContext";
+import {ModelLoader} from "./ThreeModel";
 
 interface TownProps {
     onBack: () => void;
@@ -48,6 +50,20 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
             {building.type === 'empty' && (
                 <div className="absolute inset-0 opacity-30 bg-gradient-to-br from-green-800 to-green-900 rounded-lg"></div>
             )}
+
+            <div className="w-full h-full min-h-[80px]">
+                {building.type === 'house' ? (
+                    <ThreeProvider>
+                        <ModelLoader modelPath="/models/chimney.fbx" scale={0.5} position={[0, -1, 0]} />
+                    </ThreeProvider>
+                ) : building.type === 'military' ? (
+                    <ThreeProvider>
+                        <ModelLoader modelPath="/models/blade.fbx" scale={0.3} position={[0, -0.5, 0]} />
+                    </ThreeProvider>
+                ) : (
+                    <div className="text-3xl">{buildingConfig?.emoji || '🟫'}</div>
+                )}
+            </div>
 
             {/* Building emoji */}
             <div className="text-3xl filter drop-shadow-lg">
