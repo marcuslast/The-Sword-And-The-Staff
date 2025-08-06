@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 // Component definition for building parts
 export interface BuildingComponent {
-    type: 'wall' | 'roof' | 'door' | 'window' | 'stairs' | 'foundation' | 'decoration' | 'chimney' | 'pillar';
+    type: 'wall' | 'tower' | 'column' | 'roof' | 'door' | 'window' | 'stairs' | 'foundation' | 'decoration' | 'chimney' | 'pillar';
     modelPath: string;
     position: [number, number, number];
     rotation?: [number, number, number];
@@ -36,7 +36,7 @@ function GLBComponent({
     isSelected?: boolean;
 }) {
     const { scene } = useGLTF(component.modelPath);
-    const componentRef = useRef<THREE.Group>();
+    const componentRef = useRef<THREE.Group>(null);
 
     // Clone the model to avoid sharing between instances
     const clonedScene = useMemo(() => {
@@ -85,7 +85,7 @@ export function ModularBuilding({
     onClick?: () => void;
     showConstruction?: boolean;
 }) {
-    const buildingRef = useRef<THREE.Group>();
+    const buildingRef = useRef<THREE.Group>(null);
 
     // Get components for current level and all previous levels
     const activeComponents = useMemo(() => {
