@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { townAPI, Town, BuildingConfig, BuildingPosition } from '../services/townApi';
 
-// Mock building configurations for fallback
 const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
     {
         type: 'townhall',
@@ -10,8 +9,11 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'special',
         maxLevel: 10,
         emoji: '🏛️',
+        imageUrl: '/models/buildings/townhall.glb',
         buildCost: [
-            { level: 1, resources: { wood: 200, stone: 150, iron: 50 }, time: 300 }
+            { level: 1, resources: { wood: 200, stone: 150, iron: 50 }, time: 300 },
+            { level: 2, resources: { wood: 400, stone: 300, iron: 100 }, time: 600 },
+            { level: 3, resources: { wood: 800, stone: 600, iron: 200 }, time: 1200 }
         ]
     },
     {
@@ -21,8 +23,10 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'residential',
         maxLevel: 5,
         emoji: '🏠',
+        imageUrl: '/models/buildings/house.glb',
         buildCost: [
-            { level: 1, resources: { wood: 50, stone: 30 }, time: 60 }
+            { level: 1, resources: { wood: 50, stone: 30 }, time: 60 },
+            { level: 2, resources: { wood: 75, stone: 50 }, time: 90 }
         ]
     },
     {
@@ -32,11 +36,14 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'resource',
         maxLevel: 5,
         emoji: '🌾',
+        imageUrl: '/models/buildings/farm.glb',
         buildCost: [
             { level: 1, resources: { wood: 30, stone: 20 }, time: 45 }
         ],
         production: [
-            { level: 1, resources: { food: 10 }, time: 3600 }
+            { level: 1, resources: { food: 10 }, time: 3600 },
+            { level: 2, resources: { food: 20 }, time: 3600 },
+            { level: 3, resources: { food: 35 }, time: 3600 }
         ]
     },
     {
@@ -46,11 +53,13 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'resource',
         maxLevel: 5,
         emoji: '⛏️',
+        imageUrl: '/models/buildings/mine.glb',
         buildCost: [
             { level: 1, resources: { wood: 100, stone: 80 }, time: 120 }
         ],
         production: [
-            { level: 1, resources: { iron: 5 }, time: 3600 }
+            { level: 1, resources: { iron: 5 }, time: 3600 },
+            { level: 2, resources: { iron: 10 }, time: 3600 }
         ]
     },
     {
@@ -60,11 +69,13 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'resource',
         maxLevel: 5,
         emoji: '🪵',
+        imageUrl: '/models/buildings/lumbermill.glb',
         buildCost: [
             { level: 1, resources: { stone: 60 }, time: 90 }
         ],
         production: [
-            { level: 1, resources: { wood: 8 }, time: 3600 }
+            { level: 1, resources: { wood: 8 }, time: 3600 },
+            { level: 2, resources: { wood: 16 }, time: 3600 }
         ]
     },
     {
@@ -74,11 +85,13 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'resource',
         maxLevel: 5,
         emoji: '🗿',
+        imageUrl: '/models/buildings/quarry.glb',
         buildCost: [
             { level: 1, resources: { wood: 80, iron: 20 }, time: 100 }
         ],
         production: [
-            { level: 1, resources: { stone: 6 }, time: 3600 }
+            { level: 1, resources: { stone: 6 }, time: 3600 },
+            { level: 2, resources: { stone: 12 }, time: 3600 }
         ]
     },
     {
@@ -88,6 +101,7 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         category: 'military',
         maxLevel: 5,
         emoji: '⚔️',
+        imageUrl: '/models/buildings/barracks.glb',
         buildCost: [
             { level: 1, resources: { wood: 120, stone: 100, iron: 30 }, time: 180 }
         ]
