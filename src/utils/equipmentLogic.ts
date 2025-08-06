@@ -1,4 +1,4 @@
-import { Item, Player, PlayerStats, EquipmentSlots, ItemSlot } from '../types/game.types';
+import { Item, Player, PlayerStats, ItemSlot } from '../types/game.types';
 
 // Map item icons to equipment slots
 export const getItemSlot = (item: Item): ItemSlot | null => {

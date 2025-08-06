@@ -216,7 +216,7 @@ const Town: React.FC<TownProps> = ({ onBack }) => {
                                 🌾 Collect Resources
                             </button>
                             <button
-                                onClick={() => townLogic.setBuildMode(townLogic.buildMode ? null : 'house')}
+                                onClick={() => townLogic.setBuildMode(townLogic.buildMode ? undefined : 'house')}
                                 className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                                     townLogic.buildMode
                                         ? 'bg-red-600 hover:bg-red-700 text-white'
@@ -227,6 +227,15 @@ const Town: React.FC<TownProps> = ({ onBack }) => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Build Mode Instructions */}
+                    {townLogic.buildMode && (
+                        <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-center">
+                            <p className="text-blue-200 text-sm">
+                                🏗️ Build Mode Active: Click on empty spaces to place buildings, or select from the menu below
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Town Map */}
@@ -256,8 +265,8 @@ const Town: React.FC<TownProps> = ({ onBack }) => {
                     </div>
                 )}
 
-                {/* Build Menu */}
-                {townLogic.showBuildMenu && townLogic.selectedBuilding && (
+                {/* Build Menu - Show when in build mode OR when empty cell is selected */}
+                {(townLogic.buildMode || (townLogic.showBuildMenu && townLogic.selectedBuilding)) && (
                     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 mb-6">
                         <h3 className="text-white font-bold text-xl mb-4">🏗️ Construction Options</h3>
 
@@ -280,17 +289,25 @@ const Town: React.FC<TownProps> = ({ onBack }) => {
                                             return (
                                                 <button
                                                     key={building.type}
-                                                    onClick={() => townLogic.buildBuilding(
-                                                        townLogic.selectedBuilding!.x,
-                                                        townLogic.selectedBuilding!.y,
-                                                        building.type
-                                                    )}
+                                                    onClick={() => {
+                                                        if (townLogic.buildMode) {
+                                                            // In build mode, set the building type to build
+                                                            townLogic.setBuildMode(building.type);
+                                                        } else if (townLogic.selectedBuilding) {
+                                                            // Not in build mode but have selected cell, build directly
+                                                            townLogic.buildBuilding(
+                                                                townLogic.selectedBuilding.x,
+                                                                townLogic.selectedBuilding.y,
+                                                                building.type
+                                                            );
+                                                        }
+                                                    }}
                                                     disabled={!canAfford}
                                                     className={`p-4 rounded-lg text-center transition-all border ${
                                                         canAfford
                                                             ? 'bg-white/20 hover:bg-white/30 text-white border-white/20 hover:border-white/40'
                                                             : 'bg-gray-800 text-gray-500 cursor-not-allowed border-gray-700'
-                                                    }`}
+                                                    } ${townLogic.buildMode === building.type ? 'ring-2 ring-blue-400' : ''}`}
                                                 >
                                                     <div className="text-3xl mb-2">{building.emoji}</div>
                                                     <div className="text-sm font-semibold mb-1">{building.name}</div>

@@ -1,5 +1,4 @@
-// src/utils/gameData.ts - Enhanced with battle items
-import { Item, Enemy, Question } from '../types/game.types';
+import { Item, Enemy } from '../types/game.types';
 import {ENEMY_IMAGES} from "./enemyImage";
 
 export const PLAYER_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B'];

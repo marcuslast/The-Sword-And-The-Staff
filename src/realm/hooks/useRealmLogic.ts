@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { orbAPI, Orb, OrbOpenResponse, OrbRarity, OrbContents, OrbItem } from '../services/orbApi';
+import { orbAPI, Orb, OrbRarity, OrbContents } from '../services/orbApi';
 
 export interface UserInventory {
     gold: number;

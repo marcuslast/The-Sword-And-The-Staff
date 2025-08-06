@@ -44,7 +44,7 @@ const BuildingSchema = new Schema<IBuilding>({
         required: true,
         enum: ['resource', 'military', 'residential', 'special']
     },
-    maxLevel: { type: Number, required: true, min: 1, max: 20 },
+    maxLevel: { type: Number, required: true, min: 1, max: 30 },
     buildCost: [{
         level: { type: Number, required: true },
         resources: { type: Map, of: Number },

@@ -1,10 +1,7 @@
-import { Tile, Player, Item, Enemy } from '../types/game.types';
+import { Tile, Item } from '../types/game.types';
 import { ITEM_POOL, ENEMIES, RARITIES } from './gameData';
 import { generateRandomPath, BOARD_WIDTH, BOARD_HEIGHT } from './pathGeneration';
 
-const MIN_PATH_LENGTH = 35;
-
-// Helper function to create the game board with random path
 export const createGameBoard = (): Tile[] => {
     const tiles: Tile[] = [];
     const path = generateRandomPath();

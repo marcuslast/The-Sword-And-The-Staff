@@ -5,12 +5,11 @@ import Shop from '../components/Shop';
 import {
     HealthBar,
     StatsGrid,
-    PlayerSummary
 } from '../components/HealthDisplay';
 import EquipmentPanel from '../components/EquipmentPanel';
 import {
-    AlertCircle, Trophy, Sword, Shield, Crown, Gem, Star,
-    Heart, Skull, Package, Target, Zap, Move, User,
+    Sword, Shield, Crown, Gem, Star,
+    Heart, Skull, Package, Target, User,
     Dices, Castle, Swords, AlertTriangle, Sparkles, ShoppingCart, Coins,
     Store, MapPin, ArrowLeft, ArrowRight, Navigation
 } from 'lucide-react';
