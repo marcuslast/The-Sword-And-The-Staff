@@ -59,7 +59,7 @@ const TownSchema = new Schema<ITown>({
         type: Number,
         default: 1,
         min: 1,
-        max: 30
+        max: 20
     },
     mapSize: {
         width: { type: Number, default: 10, min: 8, max: 20 },
