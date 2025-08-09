@@ -1,78 +1,111 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { AuthButton } from '../../components/Auth/AuthButton';
 import useTownLogic from '../hooks/useTownLogic';
 import useRealmLogic from '../hooks/useRealmLogic';
 
 interface TownProps {
-    onBack: () => void;
+    onBack?: () => void;
 }
 
-// Enhanced building visual configurations
+interface BuildingTimerProps {
+    endTime: string;
+    onComplete?: () => void;
+}
+
+interface BuildingCellProps {
+    building: any;
+    x: number;
+    y: number;
+    isSelected: boolean;
+    onClick: (x: number, y: number) => void;
+    config?: any;
+}
+
+// Building visual configurations
 const BUILDING_VISUALS: Record<string, {
-    baseColor: string;
-    accentColor: string;
-    shadowColor: string;
+    color: string;
     icon: string;
-    size: 'small' | 'medium' | 'large' | 'huge';
+    shadowColor: string;
 }> = {
     townhall: {
-        baseColor: 'from-amber-600 to-amber-800',
-        accentColor: 'border-amber-400',
-        shadowColor: 'shadow-amber-900/50',
+        color: 'from-amber-500 to-amber-700',
         icon: '🏛️',
-        size: 'huge'
+        shadowColor: 'shadow-amber-900/50'
     },
     house: {
-        baseColor: 'from-orange-500 to-orange-700',
-        accentColor: 'border-orange-400',
-        shadowColor: 'shadow-orange-900/50',
+        color: 'from-orange-500 to-orange-700',
         icon: '🏠',
-        size: 'small'
+        shadowColor: 'shadow-orange-900/50'
     },
     farm: {
-        baseColor: 'from-green-500 to-green-700',
-        accentColor: 'border-green-400',
-        shadowColor: 'shadow-green-900/50',
+        color: 'from-green-500 to-green-700',
         icon: '🌾',
-        size: 'medium'
+        shadowColor: 'shadow-green-900/50'
     },
     mine: {
-        baseColor: 'from-gray-600 to-gray-800',
-        accentColor: 'border-gray-500',
-        shadowColor: 'shadow-gray-900/50',
+        color: 'from-gray-500 to-gray-700',
         icon: '⛏️',
-        size: 'medium'
+        shadowColor: 'shadow-gray-900/50'
     },
     lumbermill: {
-        baseColor: 'from-yellow-700 to-yellow-900',
-        accentColor: 'border-yellow-600',
-        shadowColor: 'shadow-yellow-900/50',
+        color: 'from-yellow-700 to-yellow-900',
         icon: '🪵',
-        size: 'medium'
+        shadowColor: 'shadow-yellow-900/50'
     },
     quarry: {
-        baseColor: 'from-stone-600 to-stone-800',
-        accentColor: 'border-stone-500',
-        shadowColor: 'shadow-stone-900/50',
+        color: 'from-stone-500 to-stone-700',
         icon: '🗿',
-        size: 'medium'
+        shadowColor: 'shadow-stone-900/50'
     },
     barracks: {
-        baseColor: 'from-red-600 to-red-800',
-        accentColor: 'border-red-500',
-        shadowColor: 'shadow-red-900/50',
+        color: 'from-red-500 to-red-700',
         icon: '⚔️',
-        size: 'large'
+        shadowColor: 'shadow-red-900/50'
+    },
+    wall: {
+        color: 'from-gray-600 to-gray-800',
+        icon: '🏯',
+        shadowColor: 'shadow-gray-900/50'
+    },
+    tower: {
+        color: 'from-purple-600 to-purple-800',
+        icon: '🏰',
+        shadowColor: 'shadow-purple-900/50'
+    },
+    market: {
+        color: 'from-purple-500 to-purple-700',
+        icon: '🏪',
+        shadowColor: 'shadow-purple-900/50'
+    },
+    warehouse: {
+        color: 'from-indigo-500 to-indigo-700',
+        icon: '🏭',
+        shadowColor: 'shadow-indigo-900/50'
+    },
+    mansion: {
+        color: 'from-pink-500 to-pink-700',
+        icon: '🏰',
+        shadowColor: 'shadow-pink-900/50'
+    },
+    gem_mine: {
+        color: 'from-cyan-500 to-cyan-700',
+        icon: '💎',
+        shadowColor: 'shadow-cyan-900/50'
+    },
+    archery_range: {
+        color: 'from-teal-500 to-teal-700',
+        icon: '🏹',
+        shadowColor: 'shadow-teal-900/50'
+    },
+    stable: {
+        color: 'from-amber-600 to-amber-800',
+        icon: '🐎',
+        shadowColor: 'shadow-amber-900/50'
     }
 };
 
-// Building timer component
-const BuildingTimer: React.FC<{
-    endTime: string;
-    onSpeedUp: () => void;
-    canAffordSpeedup: boolean;
-}> = ({ endTime, onSpeedUp, canAffordSpeedup }) => {
+// Timer component
+const BuildingTimer: React.FC<BuildingTimerProps> = ({ endTime, onComplete }) => {
     const [timeLeft, setTimeLeft] = useState(0);
 
     useEffect(() => {
@@ -84,13 +117,14 @@ const BuildingTimer: React.FC<{
 
             if (diff === 0) {
                 clearInterval(interval);
+                onComplete?.();
             }
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [endTime]);
+    }, [endTime, onComplete]);
 
-    const formatTime = (ms: number) => {
+    const formatTime = (ms: number): string => {
         const seconds = Math.floor(ms / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
@@ -104,558 +138,544 @@ const BuildingTimer: React.FC<{
         }
     };
 
-    const gemCost = Math.ceil(timeLeft / 60000); // 1 gem per minute
+    if (timeLeft === 0) return null;
 
     return (
-        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-20 bg-black/80 text-white px-2 py-1 rounded-lg text-xs whitespace-nowrap">
-            <div className="flex items-center gap-2">
-                <span>⏱️ {formatTime(timeLeft)}</span>
-                <button
-                    onClick={onSpeedUp}
-                    disabled={!canAffordSpeedup}
-                    className={`px-2 py-0.5 rounded ${
-                        canAffordSpeedup
-                            ? 'bg-purple-600 hover:bg-purple-700'
-                            : 'bg-gray-600 cursor-not-allowed'
-                    }`}
-                >
-                    💎 {gemCost}
-                </button>
-            </div>
+        <div className="absolute -top-2 -right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full z-10">
+            ⏱️ {formatTime(timeLeft)}
         </div>
     );
 };
 
-// Enhanced building cell with timers for both construction and upgrade
-const IsometricBuildingCell: React.FC<{
-    building: any;
-    x: number;
-    y: number;
-    isSelected: boolean;
-    onClick: (x: number, y: number) => void;
-    buildingConfig?: any;
-    scale: number;
-    onSpeedUp?: (x: number, y: number, endTime: string) => void;
-    canAffordSpeedup?: (endTime: string) => boolean;
-}> = ({ building, x, y, isSelected, onClick, buildingConfig, scale, onSpeedUp, canAffordSpeedup }) => {
+// Building cell component
+const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected, onClick, config }) => {
+    const isEmpty = building.type === 'empty';
+    const isConstructing = building.isBuilding;
+    const isUpgrading = building.isUpgrading;
     const visual = BUILDING_VISUALS[building.type] || {
-        baseColor: 'from-gray-600 to-gray-700',
-        accentColor: 'border-gray-500',
-        shadowColor: 'shadow-gray-900/50',
+        color: 'from-gray-500 to-gray-700',
         icon: '🏗️',
-        size: 'medium'
+        shadowColor: 'shadow-gray-900/50'
     };
 
-    const sizeMultiplier = {
-        small: 1,
-        medium: 1.2,
-        large: 1.4,
-        huge: 1.6
-    }[visual.size];
-
-    const baseSize = 60 * scale * sizeMultiplier;
+    // Handle timer completion
+    const handleTimerComplete = () => {
+        // Force a refresh of the town data
+        window.location.reload();
+    };
 
     return (
-        <div
-            className="absolute transition-all duration-300 cursor-pointer"
-            style={{
-                left: `${x * 70 * scale}px`,
-                top: `${y * 70 * scale}px`,
-                width: `${baseSize}px`,
-                height: `${baseSize}px`,
-                zIndex: y * 10 + (isSelected ? 100 : 0),
-                transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-            }}
+        <button
             onClick={() => onClick(x, y)}
+            className={`
+                relative aspect-square rounded-lg transition-all duration-200
+                ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 border-2 border-dashed border-green-600/30 hover:border-green-500/50' : ''}
+                ${!isEmpty ? `bg-gradient-to-br ${visual.color} shadow-lg ${visual.shadowColor}` : ''}
+                ${isSelected ? 'ring-4 ring-yellow-400/50 scale-105' : ''}
+                ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
+                hover:scale-105 active:scale-95
+            `}
         >
-            <div className={`absolute inset-0 rounded-lg ${
-                building.type === 'empty'
-                    ? 'bg-gradient-to-br from-green-700/30 to-green-800/30 border-2 border-green-600/20'
-                    : ''
-            }`}>
-                {building.type !== 'empty' && (
-                    <>
-                        <div className={`absolute -bottom-2 -right-2 w-full h-full rounded-lg bg-black/30 blur-md ${visual.shadowColor}`} />
-                        <div className={`absolute inset-0 bg-gradient-to-br ${visual.baseColor} rounded-lg border-2 ${visual.accentColor} ${
-                            isSelected ? 'ring-4 ring-yellow-400/50' : ''
-                        }`}>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-3xl" style={{ fontSize: `${baseSize * 0.5}px` }}>
-                                    {visual.icon}
-                                </span>
-                            </div>
+            {/* Building Icon */}
+            {!isEmpty && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl md:text-3xl lg:text-4xl">
+                        {visual.icon}
+                    </span>
+                </div>
+            )}
 
-                            {building.level > 0 && (
-                                <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-lg">
-                                    {building.level}
-                                </div>
-                            )}
+            {/* Empty slot indicator */}
+            {isEmpty && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-green-400 text-xl md:text-2xl">+</span>
+                </div>
+            )}
 
-                            {buildingConfig?.production && building.level > 0 && (
-                                <div className="absolute top-2 left-2 animate-pulse">
-                                    <div className="bg-green-500 rounded-full w-3 h-3 shadow-lg shadow-green-500/50" />
-                                </div>
-                            )}
+            {/* Level indicator */}
+            {!isEmpty && building.level > 0 && (
+                <div className="absolute -top-1 -left-1 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg z-10">
+                    {building.level}
+                </div>
+            )}
 
-                            {/* Construction timer */}
-                            {building.isBuilding && building.buildEndTime && (
-                                <BuildingTimer
-                                    endTime={building.buildEndTime}
-                                    onSpeedUp={() => onSpeedUp?.(x, y, building.buildEndTime)}
-                                    canAffordSpeedup={canAffordSpeedup?.(building.buildEndTime) ?? true}
-                                />
-                            )}
+            {/* Timer display */}
+            {isConstructing && building.buildEndTime && (
+                <BuildingTimer
+                    endTime={building.buildEndTime}
+                    onComplete={handleTimerComplete}
+                />
+            )}
+            {isUpgrading && building.upgradeEndTime && (
+                <BuildingTimer
+                    endTime={building.upgradeEndTime}
+                    onComplete={handleTimerComplete}
+                />
+            )}
 
-                            {/* Upgrade timer */}
-                            {building.isUpgrading && building.upgradeEndTime && (
-                                <BuildingTimer
-                                    endTime={building.upgradeEndTime}
-                                    onSpeedUp={() => onSpeedUp?.(x, y, building.upgradeEndTime)}
-                                    canAffordSpeedup={canAffordSpeedup?.(building.upgradeEndTime) ?? true}
-                                />
-                            )}
-                        </div>
-                    </>
-                )}
-
-                {building.type === 'empty' && isSelected && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-green-400 text-2xl animate-bounce">+</div>
-                    </div>
-                )}
-            </div>
-        </div>
+            {/* Production indicator */}
+            {config?.production && building.level > 0 && !isConstructing && !isUpgrading && (
+                <div className="absolute top-1 right-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
+                </div>
+            )}
+        </button>
     );
 };
 
-const Town: React.FC<TownProps> = ({ onBack }) => {
+// Main Town component with MongoDB integration
+export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
     const { user } = useAuth();
     const townLogic = useTownLogic();
     const realmLogic = useRealmLogic();
+    const [selectedBuilding, setSelectedBuilding] = useState<{ x: number; y: number } | null>(null);
+    const [showBuildMenu, setShowBuildMenu] = useState(false);
+    const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
 
-    // Map viewport and controls
-    const mapRef = useRef<HTMLDivElement>(null);
-    const [mapPosition, setMapPosition] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const [mapScale, setMapScale] = useState(1);
-
-    // Extended map size (20x20 instead of 10x8)
-    const MAP_WIDTH = 20;
-    const MAP_HEIGHT = 20;
-    const CELL_SIZE = 70; // Base cell size in pixels
-
-    // Handle map dragging
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (e.target === mapRef.current || (e.target as HTMLElement).closest('.map-cell')) {
-            setIsDragging(true);
-            setDragStart({
-                x: e.clientX - mapPosition.x,
-                y: e.clientY - mapPosition.y
-            });
-        }
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (isDragging) {
-            setMapPosition({
-                x: e.clientX - dragStart.x,
-                y: e.clientY - dragStart.y
-            });
-        }
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    // Handle zoom
-    const handleZoom = (delta: number) => {
-        setMapScale(prev => Math.max(0.5, Math.min(2, prev + delta)));
-    };
-
-    const calculateSpeedupGemCost = (endTime: string) => {
-        return townLogic.calculateSpeedupCost(endTime);
-    };
-
-    const canAffordSpeedup = (endTime: string) => {
-        const cost = calculateSpeedupGemCost(endTime);
-        const gems = realmLogic.inventory?.resources?.gems ?? 0;
-        return gems >= cost;
-    };
-
-    const handleSpeedUp = async (x: number, y: number, endTime: string) => {
-        const cost = calculateSpeedupGemCost(endTime);
-        if (!canAffordSpeedup(endTime)) return;
-        await townLogic.speedUpBuilding(x, y, cost);
-        // You may want to refresh realm inventory here
-        try {
-            await realmLogic.loadInventory(false);
-        } catch {}
-    };
-
-    // Generate extended map layout (unchanged)
-    const generateExtendedMap = () => {
-        if (!townLogic.town) return [];
-        const extendedMap = [];
-        for (let y = 0; y < 20; y++) {
-            const row: any[] = [];
-            for (let x = 0; x < 20; x++) {
-                const building = townLogic.town.buildings.find(b => b.x === x && b.y === y);
-                if (building) {
-                    row.push({
-                        type: building.type,
-                        level: building.level,
-                        id: `${x}-${y}`,
-                        isBuilding: (building as any).isBuilding,
-                        buildEndTime: (building as any).buildEndTime,
-                        isUpgrading: building.isUpgrading,
-                        upgradeEndTime: building.upgradeEndTime
-                    });
-                } else {
-                    row.push({ type: 'empty', level: 0, id: `${x}-${y}` });
-                }
+    // Load town and inventory data on mount
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                await Promise.all([
+                    townLogic.loadTown(),
+                    realmLogic.loadInventory(false)
+                ]);
+            } catch (error) {
+                console.error('Failed to load town data:', error);
             }
-            extendedMap.push(row);
-        }
-        return extendedMap;
+        };
+        loadData();
+    }, []);
+
+    // Auto-refresh town data every 30 seconds to check for completed timers
+    useEffect(() => {
+        const interval = setInterval(() => {
+            townLogic.loadTown(false);
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // Show notification
+    const showNotification = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
     };
 
-    const extendedMap = generateExtendedMap();
+    // Handle cell click
+    const handleCellClick = (x: number, y: number) => {
+        if (!townLogic.town) return;
+
+        const building = townLogic.town.buildings.find(b => b.x === x && b.y === y);
+
+        if (!building || building.type === 'empty') {
+            // Empty cell - show build menu
+            setSelectedBuilding({ x, y });
+            setShowBuildMenu(true);
+        } else {
+            // Existing building - show info
+            setSelectedBuilding({ x, y });
+            setShowBuildMenu(false);
+        }
+    };
+
+    // Build a new building
+    const handleBuild = async (type: string) => {
+        if (!selectedBuilding) return;
+
+        const success = await townLogic.buildBuilding(
+            selectedBuilding.x,
+            selectedBuilding.y,
+            type
+        );
+
+        if (success) {
+            showNotification('Construction started!', 'success');
+            setShowBuildMenu(false);
+            setSelectedBuilding(null);
+            // Refresh inventory to show updated resources
+            await realmLogic.loadInventory(false);
+        } else if (townLogic.error) {
+            showNotification(townLogic.error, 'error');
+        }
+    };
+
+    // Upgrade a building
+    const handleUpgrade = async () => {
+        if (!selectedBuilding) return;
+
+        const success = await townLogic.upgradeBuilding(
+            selectedBuilding.x,
+            selectedBuilding.y
+        );
+
+        if (success) {
+            showNotification('Upgrade started!', 'success');
+            setSelectedBuilding(null);
+            // Refresh inventory to show updated resources
+            await realmLogic.loadInventory(false);
+        } else if (townLogic.error) {
+            showNotification(townLogic.error, 'error');
+        }
+    };
+
+    // Speed up construction
+    const handleSpeedUp = async () => {
+        if (!selectedBuilding) return;
+
+        const building = townLogic.town?.buildings.find(
+            b => b.x === selectedBuilding.x && b.y === selectedBuilding.y
+        );
+
+        if (!building) return;
+
+        const endTime = building.isBuilding ? building.buildEndTime : building.upgradeEndTime;
+        if (!endTime) return;
+
+        const gemCost = townLogic.calculateSpeedupCost(endTime);
+        const gems = realmLogic.inventory?.resources?.gems || 0;
+
+        if (gems < gemCost) {
+            showNotification(`Need ${gemCost} gems, have ${gems}`, 'error');
+            return;
+        }
+
+        const success = await townLogic.speedUpBuilding(
+            selectedBuilding.x,
+            selectedBuilding.y,
+            gemCost
+        );
+
+        if (success) {
+            showNotification('Speed up complete!', 'success');
+            await realmLogic.loadInventory(false);
+        }
+    };
+
+    // Collect resources
+    const handleCollectResources = async () => {
+        const success = await townLogic.collectResources();
+        if (success) {
+            showNotification('Resources collected!', 'success');
+            await realmLogic.loadInventory(false);
+        } else if (townLogic.error) {
+            showNotification(townLogic.error, 'error');
+        }
+    };
+
+    // Check if player can afford a building
+    const canAffordBuilding = (buildingType: string): boolean => {
+        const config = townLogic.getBuildingConfig(buildingType);
+        if (!config || !realmLogic.inventory?.resources) return false;
+
+        const cost = config.buildCost[0]?.resources || {};
+        const resources = realmLogic.inventory.resources;
+
+        for (const [resource, amount] of Object.entries(cost)) {
+            const playerAmount = (resources as any)[resource] || 0;
+            if (playerAmount < amount) return false;
+        }
+
+        return true;
+    };
 
     if (townLogic.loading && !townLogic.town) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-green-900 to-blue-900 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin text-6xl mb-4">🏰</div>
-                    <div className="text-white text-xl mb-4">Loading your kingdom...</div>
-                    <div className="text-green-200 text-sm">Preparing your lands for glory</div>
+                    <div className="text-white text-xl">Loading your kingdom...</div>
                 </div>
             </div>
         );
     }
 
+    if (!townLogic.town) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-green-900 to-blue-900 flex items-center justify-center">
+                <div className="text-white text-xl">Failed to load town data</div>
+            </div>
+        );
+    }
+
+    // Create grid from buildings
+    const createGrid = () => {
+        const grid = Array(townLogic.town!.mapSize.height).fill(null).map(() =>
+            Array(townLogic.town!.mapSize.width).fill(null).map(() => ({
+                type: 'empty',
+                level: 0
+            }))
+        );
+
+        townLogic.town!.buildings.forEach(building => {
+            if (building.y < grid.length && building.x < grid[0].length) {
+                grid[building.y][building.x] = building;
+            }
+        });
+
+        return grid;
+    };
+
+    const grid = createGrid();
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900 overflow-hidden relative">
-            {/* Fixed UI Elements */}
-            <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
-                <div className="p-4 pointer-events-auto">
-                    {/* Top Bar */}
-                    <div className="flex justify-between items-start mb-4">
-                        {/* Back button */}
+        <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900">
+            {/* Header */}
+            <div className="bg-black/30 backdrop-blur-lg border-b border-white/10">
+                <div className="max-w-7xl mx-auto px-4 py-3">
+                    <div className="flex items-center justify-between">
                         <button
                             onClick={onBack}
-                            className="bg-black/50 backdrop-blur-lg text-white p-3 rounded-xl hover:bg-black/60 transition-all duration-200 flex items-center space-x-2 shadow-xl"
+                            className="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-all flex items-center gap-2"
                         >
                             <span>←</span>
-                            <span>Back</span>
+                            <span className="hidden sm:inline">Back to Realm</span>
                         </button>
 
-                        {/* Auth button */}
-                        <AuthButton />
+                        <h1 className="text-white font-bold text-lg sm:text-xl">
+                            🏰 {townLogic.town.name || 'My Town'}
+                        </h1>
+
+                        <div className="text-white text-sm">
+                            Level {townLogic.town.level}
+                        </div>
                     </div>
+                </div>
+            </div>
 
-                    {/* Resources Bar */}
-                    {realmLogic.inventory && (
-                        <div className="bg-black/60 backdrop-blur-lg rounded-2xl p-4 mx-auto max-w-4xl shadow-2xl border border-white/10">
-                            <div className="flex items-center justify-around text-white">
-                                <div className="flex items-center space-x-2">
-                                    <span className="text-2xl">💰</span>
-                                    <div>
-                                        <div className="font-bold text-lg">{realmLogic.inventory.gold.toLocaleString()}</div>
-                                        <div className="text-xs opacity-70">Gold</div>
-                                    </div>
+            {/* Resources Bar */}
+            <div className="bg-black/20 backdrop-blur-lg border-b border-white/10">
+                <div className="max-w-7xl mx-auto px-4 py-2">
+                    <div className="flex items-center gap-4 overflow-x-auto">
+                        <div className="flex items-center gap-1 text-white whitespace-nowrap">
+                            <span className="text-lg">💰</span>
+                            <span className="font-bold">{realmLogic.inventory?.gold || 0}</span>
+                        </div>
+                        {realmLogic.inventory?.resources && Object.entries(realmLogic.inventory.resources).map(([resource, amount]) => (
+                            <div key={resource} className="flex items-center gap-1 text-white whitespace-nowrap">
+                                <span className="text-lg">
+                                    {resource === 'wood' ? '🪵' :
+                                        resource === 'stone' ? '🗿' :
+                                            resource === 'iron' ? '⚒️' :
+                                                resource === 'food' ? '🌾' :
+                                                    resource === 'gems' ? '💎' : '📦'}
+                                </span>
+                                <span className="font-bold">{amount}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Pending Resources Alert */}
+            {townLogic.hasPendingResources && (
+                <div className="bg-green-600/90 backdrop-blur-lg mx-4 mt-4 rounded-xl p-3 max-w-md mx-auto">
+                    <p className="text-white font-bold mb-1">🌾 Resources Ready!</p>
+                    <div className="text-green-100 text-sm mb-2">
+                        {Object.entries(townLogic.pendingResources)
+                            .filter(([_, amount]) => amount > 0)
+                            .map(([resource, amount]) => `+${amount} ${resource}`)
+                            .join(', ')}
+                    </div>
+                    <button
+                        onClick={handleCollectResources}
+                        disabled={townLogic.collectingResources}
+                        className="w-full bg-white/20 text-white px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all disabled:opacity-50 font-semibold text-sm"
+                    >
+                        {townLogic.collectingResources ? 'Collecting...' : 'Collect All'}
+                    </button>
+                </div>
+            )}
+
+            {/* Notification */}
+            {notification && (
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+                    <div className={`px-6 py-3 rounded-lg shadow-xl ${
+                        notification.type === 'error' ? 'bg-red-600' :
+                            notification.type === 'success' ? 'bg-green-600' :
+                                'bg-blue-600'
+                    } text-white font-semibold`}>
+                        {notification.message}
+                    </div>
+                </div>
+            )}
+
+            {/* Main Content */}
+            <div className="max-w-7xl mx-auto px-4 py-6">
+                {/* Town Grid */}
+                <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-4 mb-6">
+                    <div className={`grid grid-cols-${townLogic.town.mapSize.width} gap-1 sm:gap-2 max-w-4xl mx-auto`}>
+                        {grid.map((row, y) =>
+                            row.map((cell, x) => {
+                                const config = townLogic.getBuildingConfig(cell.type);
+                                return (
+                                    <BuildingCell
+                                        key={`${x}-${y}`}
+                                        building={cell}
+                                        x={x}
+                                        y={y}
+                                        isSelected={selectedBuilding?.x === x && selectedBuilding?.y === y}
+                                        onClick={handleCellClick}
+                                        config={config}
+                                    />
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
+                {/* Build Menu */}
+                {showBuildMenu && selectedBuilding && (
+                    <div className="fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 transform">
+                        <div className="bg-black/90 backdrop-blur-lg border-t border-white/20 p-4">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-white font-bold text-lg">Choose Building</h3>
+                                    <button
+                                        onClick={() => {
+                                            setShowBuildMenu(false);
+                                            setSelectedBuilding(null);
+                                        }}
+                                        className="text-white/60 hover:text-white text-2xl"
+                                    >
+                                        ×
+                                    </button>
                                 </div>
-                                {realmLogic.inventory.resources && Object.entries(realmLogic.inventory.resources).map(([resource, amount]) => (
-                                    <div key={resource} className="flex items-center space-x-2">
-                                        <span className="text-2xl">{
-                                            resource === 'wood' ? '🪵' :
-                                                resource === 'stone' ? '🗿' :
-                                                    resource === 'iron' ? '⚒️' :
-                                                        resource === 'food' ? '🌾' :
-                                                            resource === 'gems' ? '💎' : '📦'
-                                        }</span>
-                                        <div>
-                                            <div className="font-bold">{amount}</div>
-                                            <div className="text-xs opacity-70 capitalize">{resource}</div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto">
+                                    {townLogic.buildingConfigs.map(config => {
+                                        const cost = config.buildCost[0]?.resources || {};
+                                        const canAfford = canAffordBuilding(config.type);
+                                        const visual = BUILDING_VISUALS[config.type] || {
+                                            color: 'from-gray-500 to-gray-700',
+                                            icon: '🏗️'
+                                        };
+
+                                        return (
+                                            <button
+                                                key={config.type}
+                                                onClick={() => handleBuild(config.type)}
+                                                disabled={!canAfford}
+                                                className={`p-3 rounded-lg border-2 transition-all ${
+                                                    canAfford
+                                                        ? `bg-gradient-to-br ${visual.color} border-white/20 hover:scale-105 text-white`
+                                                        : 'bg-gray-800 border-gray-700 opacity-50 cursor-not-allowed text-gray-400'
+                                                }`}
+                                            >
+                                                <div className="text-2xl mb-1">{visual.icon}</div>
+                                                <div className="font-bold text-sm">{config.name}</div>
+                                                <div className="text-xs opacity-80 mt-1">
+                                                    {Object.entries(cost).map(([r, a]) => `${a} ${r}`).join(', ')}
+                                                </div>
+                                                <div className="text-xs opacity-60 mt-1">
+                                                    ⏱️ {config.buildCost[0]?.time}s
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Building Info Panel */}
+                {selectedBuilding && !showBuildMenu && (() => {
+                    const building = townLogic.town!.buildings.find(
+                        b => b.x === selectedBuilding.x && b.y === selectedBuilding.y
+                    );
+                    if (!building || building.type === 'empty') return null;
+
+                    const config = townLogic.getBuildingConfig(building.type);
+                    if (!config) return null;
+
+                    const visual = BUILDING_VISUALS[building.type] || {
+                        color: 'from-gray-500 to-gray-700',
+                        icon: '🏗️'
+                    };
+
+                    const canUpgrade = !building.isUpgrading && !building.isBuilding &&
+                        building.level < config.maxLevel;
+                    const nextLevelCost = config.buildCost[Math.min(building.level, config.buildCost.length - 1)]?.resources || {};
+
+                    return (
+                        <div className="fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 transform">
+                            <div className="bg-black/90 backdrop-blur-lg border-t border-white/20 p-4">
+                                <div className="max-w-2xl mx-auto">
+                                    <div className="text-white">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-3xl">{visual.icon}</span>
+                                                <div>
+                                                    <h3 className="font-bold text-lg">{config.name}</h3>
+                                                    <p className="text-sm opacity-80">Level {building.level}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedBuilding(null)}
+                                                className="text-white/60 hover:text-white text-2xl"
+                                            >
+                                                ×
+                                            </button>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
 
-            {/* Map Controls */}
-            <div className="absolute bottom-4 right-4 z-30 flex flex-col gap-2">
-                <button
-                    onClick={() => handleZoom(0.1)}
-                    className="bg-black/50 backdrop-blur text-white p-3 rounded-xl hover:bg-black/60 transition-all shadow-xl"
-                >
-                    🔍+
-                </button>
-                <button
-                    onClick={() => handleZoom(-0.1)}
-                    className="bg-black/50 backdrop-blur text-white p-3 rounded-xl hover:bg-black/60 transition-all shadow-xl"
-                >
-                    🔍-
-                </button>
-                <button
-                    onClick={() => {
-                        setMapPosition({ x: 0, y: 0 });
-                        setMapScale(1);
-                    }}
-                    className="bg-black/50 backdrop-blur text-white p-3 rounded-xl hover:bg-black/60 transition-all shadow-xl"
-                >
-                    🎯
-                </button>
-            </div>
+                                        <p className="text-sm opacity-80 mb-4">{config.description}</p>
 
-            {/* Scrollable Map */}
-            <div
-                ref={mapRef}
-                className="absolute inset-0 cursor-move"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                style={{
-                    backgroundImage: `
-                        radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 40%, rgba(251, 146, 60, 0.05) 0%, transparent 50%)
-                    `
-                }}
-            >
-                {/* Map Grid Container */}
-                <div
-                    className="relative"
-                    style={{
-                        transform: `translate(${mapPosition.x}px, ${mapPosition.y}px) scale(${mapScale})`,
-                        transformOrigin: 'center center',
-                        width: `${MAP_WIDTH * CELL_SIZE}px`,
-                        height: `${MAP_HEIGHT * CELL_SIZE}px`,
-                        left: '50%',
-                        top: '50%',
-                        marginLeft: `-${(MAP_WIDTH * CELL_SIZE) / 2}px`,
-                        marginTop: `-${(MAP_HEIGHT * CELL_SIZE) / 2}px`,
-                    }}
-                >
-                    {/* Grid Background Pattern */}
-                    <div
-                        className="absolute inset-0 opacity-10"
-                        style={{
-                            backgroundImage: `
-                                linear-gradient(0deg, rgba(255,255,255,0.1) 1px, transparent 1px),
-                                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-                            `,
-                            backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`
-                        }}
-                    />
-
-                    {/* Render buildings */}
-                    {extendedMap.map((row, y) =>
-                        row.map((cell, x) => {
-                            const buildingConfig = townLogic.getBuildingConfig(cell.type);
-                            const isSelected = townLogic.selectedBuilding?.x === x && townLogic.selectedBuilding?.y === y;
-
-                            return (
-                                <IsometricBuildingCell
-                                    key={cell.id}
-                                    building={cell}
-                                    x={x}
-                                    y={y}
-                                    isSelected={isSelected}
-                                    onClick={(x, y) => {
-                                        if (!isDragging) {
-                                            townLogic.handleCellClick(x, y);
-                                        }
-                                    }}
-                                    buildingConfig={buildingConfig}
-                                    scale={1}
-                                    onSpeedUp={handleSpeedUp}
-                                    canAffordSpeedup={canAffordSpeedup}
-                                />
-                            );
-                        })
-                    )}
-                </div>
-            </div>
-
-            {/* Bottom UI Panel */}
-            <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
-                <div className="p-4 pointer-events-auto">
-                    {/* Pending Resources Alert */}
-                    {townLogic.hasPendingResources && (
-                        <div className="bg-green-600/90 backdrop-blur-lg rounded-xl p-4 mb-4 mx-auto max-w-md shadow-2xl border border-green-400/30">
-                            <p className="text-white font-bold mb-2">🌾 Resources Ready!</p>
-                            <div className="text-green-100 text-sm mb-3">
-                                {Object.entries(townLogic.pendingResources)
-                                    .filter(([_, amount]) => amount > 0)
-                                    .map(([resource, amount]) => `+${amount} ${resource}`)
-                                    .join(', ')}
-                            </div>
-                            <button
-                                onClick={townLogic.collectResources}
-                                disabled={townLogic.collectingResources}
-                                className="w-full bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-all disabled:opacity-50 font-semibold"
-                            >
-                                {townLogic.collectingResources ? 'Collecting...' : 'Collect All'}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Build Menu - Show when in build mode or when empty cell is selected */}
-                    {(townLogic.buildMode || (townLogic.showBuildMenu && townLogic.selectedBuilding)) && (
-                        <div className="bg-black/80 backdrop-blur-lg rounded-2xl p-6 mx-auto max-w-6xl shadow-2xl border border-white/10">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-white font-bold text-xl">🏗️ Construction Menu</h3>
-                                <button
-                                    onClick={() => {
-                                        townLogic.setBuildMode(null);
-                                        townLogic.setShowBuildMenu(false);
-                                    }}
-                                    className="text-white/60 hover:text-white"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-4 max-h-96 overflow-y-auto">
-                                {townLogic.buildingConfigs.map((building) => {
-                                    const canAfford = true; // Simplified for demo
-                                    const visual = BUILDING_VISUALS[building.type] || BUILDING_VISUALS.house;
-                                    const cost = building.buildCost[0]?.resources || {};
-
-                                    return (
-                                        <button
-                                            key={building.type}
-                                            onClick={() => {
-                                                if (townLogic.selectedBuilding) {
-                                                    townLogic.buildBuilding(
-                                                        townLogic.selectedBuilding.x,
-                                                        townLogic.selectedBuilding.y,
-                                                        building.type
-                                                    );
-                                                }
-                                            }}
-                                            disabled={!canAfford}
-                                            className={`relative p-4 rounded-xl transition-all border-2 ${
-                                                canAfford
-                                                    ? `bg-gradient-to-br ${visual.baseColor} ${visual.accentColor} hover:scale-105 text-white`
-                                                    : 'bg-gray-800 text-gray-500 cursor-not-allowed border-gray-700'
-                                            }`}
-                                        >
-                                            <div className="text-4xl mb-2">{visual.icon}</div>
-                                            <div className="font-bold mb-1">{building.name}</div>
-                                            <div className="text-xs opacity-80 mb-2">{building.description}</div>
-                                            <div className="text-xs space-y-1">
-                                                {Object.entries(cost).map(([resource, amount]) => (
-                                                    <div key={resource} className="flex justify-between">
-                                                        <span>{resource}:</span>
-                                                        <span>{amount}</span>
-                                                    </div>
-                                                ))}
-                                                <div className="flex justify-between text-yellow-300">
-                                                    <span>Time:</span>
-                                                    <span>{building.buildCost[0]?.time}s</span>
+                                        {config.production && building.level > 0 && (
+                                            <div className="bg-green-500/20 rounded-lg p-3 mb-4">
+                                                <div className="text-sm font-semibold mb-1">Production:</div>
+                                                <div className="text-sm">
+                                                    {Object.entries(config.production[0]?.resources || {})
+                                                        .map(([r, a]) => `+${(a as number) * building.level} ${r}/hour`)
+                                                        .join(', ')}
                                                 </div>
                                             </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                                        )}
 
-                    {/* Selected Building Info */}
-                    {townLogic.selectedBuilding && townLogic.town &&
-                        extendedMap[townLogic.selectedBuilding.y]?.[townLogic.selectedBuilding.x]?.type !== 'empty' && (
-                            <div className="bg-black/80 backdrop-blur-lg rounded-2xl p-6 mx-auto max-w-2xl shadow-2xl border border-white/10">
-                                {(() => {
-                                    const building = extendedMap[townLogic.selectedBuilding.y][townLogic.selectedBuilding.x];
-                                    const config = townLogic.getBuildingConfig(building.type);
-                                    const visual = BUILDING_VISUALS[building.type];
-
-                                    return (
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-4 mb-3">
-                                                    <div className={`p-3 rounded-xl bg-gradient-to-br ${visual?.baseColor || 'from-gray-600 to-gray-800'}`}>
-                                                        <span className="text-4xl">{visual?.icon || '🏗️'}</span>
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="text-white font-bold text-xl">
-                                                            {config?.name || 'Unknown Building'}
-                                                        </h3>
-                                                        <div className="text-white/60">Level {building.level}</div>
-                                                    </div>
+                                        {canUpgrade && (
+                                            <>
+                                                <div className="text-xs opacity-60 mb-2">
+                                                    Upgrade cost: {Object.entries(nextLevelCost).map(([r, a]) => `${a} ${r}`).join(', ')}
                                                 </div>
+                                                <button
+                                                    onClick={handleUpgrade}
+                                                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all"
+                                                >
+                                                    ⬆️ Upgrade to Level {building.level + 1}
+                                                </button>
+                                            </>
+                                        )}
 
-                                                <p className="text-white/80 mb-3">
-                                                    {config?.description || 'A mysterious structure.'}
-                                                </p>
-
-                                                {config?.production && (
-                                                    <div className="bg-green-500/20 rounded-lg p-3 mb-3">
-                                                        <div className="text-green-300 text-sm font-semibold">
-                                                            📈 Production (per hour):
-                                                        </div>
-                                                        <div className="text-white mt-1">
-                                                            {Object.entries(config.production[0]?.resources || {})
-                                                                .map(([resource, amount]) => `${amount * building.level} ${resource}`)
-                                                                .join(', ')}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {building.isUpgrading && (
-                                                    <div className="bg-blue-500/20 rounded-lg p-3">
-                                                        <div className="text-blue-300 text-sm">
-                                                            🔨 Upgrading to Level {building.level + 1}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                        {building.level >= config.maxLevel && (
+                                            <div className="text-center py-3 text-yellow-400">
+                                                ⭐ Max Level Reached
                                             </div>
+                                        )}
 
-                                            <div className="flex flex-col gap-2 ml-4">
-                                                {!building.isUpgrading && (
+                                        {(building.isUpgrading || building.isBuilding) && (
+                                            <div className="text-center py-3">
+                                                <div className="text-yellow-400 mb-2">
+                                                    <div className="animate-spin inline-block text-2xl mb-2">⏳</div>
+                                                    <div>{building.isUpgrading ? 'Upgrading...' : 'Building...'}</div>
+                                                </div>
+                                                {(building.buildEndTime || building.upgradeEndTime) && (
                                                     <button
-                                                        onClick={() => townLogic.upgradeBuilding(
-                                                            townLogic.selectedBuilding!.x,
-                                                            townLogic.selectedBuilding!.y
-                                                        )}
-                                                        className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-semibold shadow-lg"
+                                                        onClick={handleSpeedUp}
+                                                        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all text-sm"
                                                     >
-                                                        ⬆️ Upgrade
+                                                        💎 Speed Up ({townLogic.calculateSpeedupCost(
+                                                        building.buildEndTime || building.upgradeEndTime || ''
+                                                    )} gems)
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => townLogic.setSelectedBuilding(null)}
-                                                    className="bg-white/10 text-white px-6 py-2 rounded-xl hover:bg-white/20 transition-all"
-                                                >
-                                                    Close
-                                                </button>
                                             </div>
-                                        </div>
-                                    );
-                                })()}
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        )}
-                </div>
-            </div>
-
-            {/* Map Navigation Hint */}
-            <div className="absolute top-32 left-4 z-20">
-                <div className="bg-black/40 backdrop-blur rounded-lg p-3 text-white/80 text-sm">
-                    <div className="font-semibold mb-1">🗺️ Map Controls</div>
-                    <div className="space-y-1 text-xs">
-                        <div>• Drag to move around</div>
-                        <div>• Scroll or use buttons to zoom</div>
-                        <div>• Click buildings to manage</div>
-                    </div>
-                </div>
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );
