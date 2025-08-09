@@ -6,6 +6,11 @@ export interface BuildingPosition {
     type: string;
     level: number;
     lastCollected?: Date;
+    // build (construction) timers/flags
+    buildStartTime?: Date;
+    buildEndTime?: Date;
+    isBuilding?: boolean;
+    // upgrade timers/flags
     upgradeStartTime?: Date;
     upgradeEndTime?: Date;
     isUpgrading?: boolean;
@@ -36,6 +41,13 @@ const BuildingPositionSchema = new Schema({
     },
     level: { type: Number, default: 1, min: 0, max: 10 },
     lastCollected: { type: Date, default: Date.now },
+
+    // construction
+    buildStartTime: { type: Date },
+    buildEndTime: { type: Date },
+    isBuilding: { type: Boolean, default: false },
+
+    // upgrade
     upgradeStartTime: { type: Date },
     upgradeEndTime: { type: Date },
     isUpgrading: { type: Boolean, default: false }
@@ -46,7 +58,7 @@ const TownSchema = new Schema<ITown>({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true, // Each user has one town
+        unique: true,
         index: true
     },
     name: {
@@ -67,7 +79,7 @@ const TownSchema = new Schema<ITown>({
     },
     buildings: [BuildingPositionSchema],
     layout: {
-        type: String, // JSON stringified 2D array
+        type: String,
         default: ''
     },
     lastResourceCollection: {
@@ -78,7 +90,6 @@ const TownSchema = new Schema<ITown>({
     timestamps: true
 });
 
-// Index for performance
 TownSchema.index({ userId: 1 });
 
 export default mongoose.model<ITown>('Town', TownSchema);

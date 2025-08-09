@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { townAPI, Town, BuildingConfig, BuildingPosition } from '../services/townApi';
 
+interface ExtendedBuildingPosition extends BuildingPosition {
+    buildStartTime?: string;
+    buildEndTime?: string;
+    isBuilding?: boolean;
+}
+
 const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
     {
         type: 'townhall',
@@ -26,7 +32,22 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         imageUrl: '/models/buildings/house.glb',
         buildCost: [
             { level: 1, resources: { wood: 50, stone: 30 }, time: 60 },
-            { level: 2, resources: { wood: 75, stone: 50 }, time: 90 }
+            { level: 2, resources: { wood: 75, stone: 50 }, time: 90 },
+            { level: 3, resources: { wood: 100, stone: 70 }, time: 120 }
+        ]
+    },
+    {
+        type: 'mansion',
+        name: 'Mansion',
+        description: 'Luxury housing for wealthy citizens. Generates tax revenue.',
+        category: 'residential',
+        maxLevel: 3,
+        emoji: '🏰',
+        buildCost: [
+            { level: 1, resources: { wood: 150, stone: 200, iron: 50, gems: 5 }, time: 180 }
+        ],
+        production: [
+            { level: 1, resources: { gold: 10 }, time: 3600 }
         ]
     },
     {
@@ -38,7 +59,8 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         emoji: '🌾',
         imageUrl: '/models/buildings/farm.glb',
         buildCost: [
-            { level: 1, resources: { wood: 30, stone: 20 }, time: 45 }
+            { level: 1, resources: { wood: 30, stone: 20 }, time: 45 },
+            { level: 2, resources: { wood: 50, stone: 35 }, time: 70 }
         ],
         production: [
             { level: 1, resources: { food: 10 }, time: 3600 },
@@ -55,11 +77,26 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         emoji: '⛏️',
         imageUrl: '/models/buildings/mine.glb',
         buildCost: [
-            { level: 1, resources: { wood: 100, stone: 80 }, time: 120 }
+            { level: 1, resources: { wood: 100, stone: 80 }, time: 120 },
+            { level: 2, resources: { wood: 150, stone: 120 }, time: 180 }
         ],
         production: [
             { level: 1, resources: { iron: 5 }, time: 3600 },
             { level: 2, resources: { iron: 10 }, time: 3600 }
+        ]
+    },
+    {
+        type: 'gem_mine',
+        name: 'Gem Mine',
+        description: 'Rare mine that occasionally produces precious gems.',
+        category: 'resource',
+        maxLevel: 3,
+        emoji: '💎',
+        buildCost: [
+            { level: 1, resources: { wood: 500, stone: 400, iron: 200 }, time: 600 }
+        ],
+        production: [
+            { level: 1, resources: { gems: 1 }, time: 7200 }
         ]
     },
     {
@@ -105,6 +142,64 @@ const MOCK_BUILDING_CONFIGS: BuildingConfig[] = [
         buildCost: [
             { level: 1, resources: { wood: 120, stone: 100, iron: 30 }, time: 180 }
         ]
+    },
+    {
+        type: 'archery_range',
+        name: 'Archery Range',
+        description: 'Trains ranged units for defense and offense.',
+        category: 'military',
+        maxLevel: 3,
+        emoji: '🏹',
+        buildCost: [
+            { level: 1, resources: { wood: 150, stone: 50, iron: 20 }, time: 150 }
+        ]
+    },
+    {
+        type: 'stable',
+        name: 'Stable',
+        description: 'Trains cavalry units for rapid deployment.',
+        category: 'military',
+        maxLevel: 3,
+        emoji: '🐎',
+        buildCost: [
+            { level: 1, resources: { wood: 200, stone: 100, iron: 50, food: 100 }, time: 240 }
+        ]
+    },
+    {
+        type: 'market',
+        name: 'Market',
+        description: 'Trade resources and generate gold from commerce.',
+        category: 'special',
+        maxLevel: 5,
+        emoji: '🏪',
+        buildCost: [
+            { level: 1, resources: { wood: 100, stone: 100 }, time: 120 }
+        ],
+        production: [
+            { level: 1, resources: { gold: 5 }, time: 3600 }
+        ]
+    },
+    {
+        type: 'warehouse',
+        name: 'Warehouse',
+        description: 'Increases your resource storage capacity.',
+        category: 'special',
+        maxLevel: 10,
+        emoji: '🏭',
+        buildCost: [
+            { level: 1, resources: { wood: 75, stone: 75 }, time: 90 }
+        ]
+    },
+    {
+        type: 'wall',
+        name: 'City Wall',
+        description: 'Provides defense bonuses against attacks.',
+        category: 'military',
+        maxLevel: 5,
+        emoji: '🏯',
+        buildCost: [
+            { level: 1, resources: { stone: 200, iron: 50 }, time: 300 }
+        ]
     }
 ];
 
@@ -124,21 +219,40 @@ const useTownLogic = () => {
     const [pendingResources, setPendingResources] = useState<Record<string, number>>({});
     const [collectingResources, setCollectingResources] = useState(false);
 
+    // Building timers state
+    const [buildingTimers, setBuildingTimers] = useState<Map<string, NodeJS.Timeout>>(new Map());
+    const [activeBuildQueue, setActiveBuildQueue] = useState<Array<{
+        x: number;
+        y: number;
+        type: string;
+        endTime: string;
+    }>>([]);
+
     // Create initial mock town for fallback
     const createMockTown = (): Town => {
-        const buildings: BuildingPosition[] = [
-            { x: 4, y: 3, type: 'townhall', level: 1 },
-            { x: 3, y: 3, type: 'house', level: 1 },
-            { x: 5, y: 3, type: 'farm', level: 1 }
+        const buildings: ExtendedBuildingPosition[] = [
+            { x: 10, y: 10, type: 'townhall', level: 1 },
+            { x: 9, y: 10, type: 'house', level: 1 },
+            { x: 11, y: 10, type: 'farm', level: 1 },
+            { x: 10, y: 9, type: 'lumbermill', level: 1 },
+            { x: 10, y: 11, type: 'quarry', level: 1 }
         ];
 
         const layout = [];
-        for (let y = 0; y < 8; y++) {
+        for (let y = 0; y < 20; y++) {
             const row = [];
-            for (let x = 0; x < 10; x++) {
+            for (let x = 0; x < 20; x++) {
                 const building = buildings.find(b => b.x === x && b.y === y);
                 if (building) {
-                    row.push({ type: building.type, level: building.level, id: `${x}-${y}` });
+                    row.push({
+                        type: building.type,
+                        level: building.level,
+                        id: `${x}-${y}`,
+                        isBuilding: building.isBuilding,
+                        isUpgrading: building.isUpgrading,
+                        buildEndTime: building.buildEndTime,
+                        upgradeEndTime: building.upgradeEndTime
+                    });
                 } else {
                     row.push({ type: 'empty', level: 0, id: `${x}-${y}` });
                 }
@@ -148,9 +262,9 @@ const useTownLogic = () => {
 
         return {
             id: 'mock-town',
-            name: 'My Town',
+            name: 'My Kingdom',
             level: 1,
-            mapSize: { width: 10, height: 8 },
+            mapSize: { width: 20, height: 20 },
             buildings,
             layout,
             lastCollected: new Date().toISOString()
@@ -171,6 +285,9 @@ const useTownLogic = () => {
             setTown(data.town);
             setBuildingConfigs(data.buildingConfigs);
             setPendingResources(data.town.pendingProduction || {});
+
+            // Check for any ongoing building operations
+            checkBuildingTimers(data.town);
 
             return data;
 
@@ -197,6 +314,213 @@ const useTownLogic = () => {
             }
         } finally {
             if (showLoading) setLoading(false);
+        }
+    };
+
+    // Check and restore building timers
+    const checkBuildingTimers = (townData: Town) => {
+        const now = Date.now();
+        const queue: typeof activeBuildQueue = [];
+
+        townData.buildings.forEach((building: any) => {
+            if (building.isBuilding && building.buildEndTime) {
+                const endTime = new Date(building.buildEndTime).getTime();
+                if (endTime > now) {
+                    queue.push({
+                        x: building.x,
+                        y: building.y,
+                        type: building.type,
+                        endTime: building.buildEndTime
+                    });
+                    startBuildingTimer(building.x, building.y, building.buildEndTime);
+                } else {
+                    // Building should be completed
+                    completeBuildingConstruction(building.x, building.y);
+                }
+            }
+
+            if (building.isUpgrading && building.upgradeEndTime) {
+                const endTime = new Date(building.upgradeEndTime).getTime();
+                if (endTime > now) {
+                    queue.push({
+                        x: building.x,
+                        y: building.y,
+                        type: building.type,
+                        endTime: building.upgradeEndTime
+                    });
+                    startUpgradeTimer(building.x, building.y, building.upgradeEndTime);
+                } else {
+                    // Upgrade should be completed
+                    completeUpgrade(building.x, building.y);
+                }
+            }
+        });
+
+        setActiveBuildQueue(queue);
+    };
+
+    // Start a building timer
+    const startBuildingTimer = (x: number, y: number, endTime: string) => {
+        const timerId = `build-${x}-${y}`;
+
+        // Clear any existing timer
+        const existingTimer = buildingTimers.get(timerId);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        const timeLeft = new Date(endTime).getTime() - Date.now();
+        if (timeLeft > 0) {
+            const timer = setTimeout(() => {
+                completeBuildingConstruction(x, y);
+            }, timeLeft);
+
+            setBuildingTimers(prev => new Map(prev).set(timerId, timer));
+        }
+    };
+
+    // Start an upgrade timer
+    const startUpgradeTimer = (x: number, y: number, endTime: string) => {
+        const timerId = `upgrade-${x}-${y}`;
+
+        const existingTimer = buildingTimers.get(timerId);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        const timeLeft = new Date(endTime).getTime() - Date.now();
+        if (timeLeft > 0) {
+            const timer = setTimeout(() => {
+                completeUpgrade(x, y);
+            }, timeLeft);
+
+            setBuildingTimers(prev => new Map(prev).set(timerId, timer));
+        }
+    };
+
+    // Complete building construction
+    const completeBuildingConstruction = (x: number, y: number) => {
+        setTown(prev => {
+            if (!prev) return null;
+
+            const updatedBuildings = prev.buildings.map(b =>
+                b.x === x && b.y === y
+                    ? { ...b, isBuilding: false, buildEndTime: undefined }
+                    : b
+            );
+
+            const updatedLayout = [...prev.layout];
+            if (updatedLayout[y] && updatedLayout[y][x]) {
+                updatedLayout[y][x] = {
+                    ...updatedLayout[y][x],
+                    isBuilding: false,
+                    buildEndTime: undefined
+                };
+            }
+
+            return {
+                ...prev,
+                buildings: updatedBuildings,
+                layout: updatedLayout
+            };
+        });
+
+        // Remove from active queue
+        setActiveBuildQueue(prev => prev.filter(item => !(item.x === x && item.y === y)));
+
+        // Clear timer
+        const timerId = `build-${x}-${y}`;
+        setBuildingTimers(prev => {
+            const newMap = new Map(prev);
+            const timer = newMap.get(timerId);
+            if (timer) clearTimeout(timer);
+            newMap.delete(timerId);
+            return newMap;
+        });
+
+        // Show completion notification
+        setError('🎉 Building construction completed!');
+        setTimeout(() => setError(null), 3000);
+    };
+
+    // Complete upgrade
+    const completeUpgrade = (x: number, y: number) => {
+        setTown(prev => {
+            if (!prev) return null;
+
+            const updatedBuildings = prev.buildings.map(b =>
+                b.x === x && b.y === y
+                    ? { ...b, level: b.level + 1, isUpgrading: false, upgradeEndTime: undefined }
+                    : b
+            );
+
+            const updatedLayout = [...prev.layout];
+            if (updatedLayout[y] && updatedLayout[y][x]) {
+                updatedLayout[y][x] = {
+                    ...updatedLayout[y][x],
+                    level: updatedLayout[y][x].level + 1,
+                    isUpgrading: false,
+                    upgradeEndTime: undefined
+                };
+            }
+
+            return {
+                ...prev,
+                buildings: updatedBuildings,
+                layout: updatedLayout
+            };
+        });
+
+        // Remove from active queue
+        setActiveBuildQueue(prev => prev.filter(item => !(item.x === x && item.y === y)));
+
+        // Clear timer
+        const timerId = `upgrade-${x}-${y}`;
+        setBuildingTimers(prev => {
+            const newMap = new Map(prev);
+            const timer = newMap.get(timerId);
+            if (timer) clearTimeout(timer);
+            newMap.delete(timerId);
+            return newMap;
+        });
+
+        // Show completion notification
+        setError('🎉 Building upgrade completed!');
+        setTimeout(() => setError(null), 3000);
+    };
+
+    // Speed up building with gems
+    const speedUpBuilding = async (x: number, y: number, _gemCost: number): Promise<boolean> => {
+        try {
+            setError(null);
+            const resp = await townAPI.speedUpBuilding({ x, y });
+            const b = resp.building;
+
+            // Update town to reflect completed state
+            setTown(prev => {
+                if (!prev) return null;
+
+                const newBuildings = prev.buildings.map(bb =>
+                    bb.x === x && bb.y === y ? { ...bb, ...b } : bb
+                );
+
+                const newLayout = [...prev.layout];
+                if (newLayout[y] && newLayout[y][x]) {
+                    newLayout[y][x] = { ...newLayout[y][x], type: b.type, level: b.level, isBuilding: false, isUpgrading: false };
+                }
+
+                return { ...prev, buildings: newBuildings, layout: newLayout };
+            });
+
+            // Clear any timers for this cell
+            completeBuildingConstruction(x, y);
+            completeUpgrade(x, y);
+
+            return true;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to speed up building';
+            setError(errorMessage);
+            return false;
         }
     };
 
@@ -246,163 +570,86 @@ const useTownLogic = () => {
         }
     };
 
-    // Build a new building
+    // Build a new building with timer
     const buildBuilding = async (x: number, y: number, type: string): Promise<boolean> => {
         if (!town) return false;
 
         try {
             setError(null);
+            const resp = await townAPI.buildBuilding({ x, y, type });
+            const b = resp.building;
 
-            console.log(`🏗️ Building ${type} at (${x}, ${y})`);
-
-            const response = await townAPI.buildBuilding({ x, y, type });
-            console.log('✅ Building constructed:', response);
-
-            // Update town state
             setTown(prev => {
                 if (!prev) return null;
-
                 const newBuildings = [...prev.buildings];
-                const existingIndex = newBuildings.findIndex(b => b.x === x && b.y === y);
+                const idx = newBuildings.findIndex(bb => bb.x === x && bb.y === y);
+                if (idx >= 0) newBuildings[idx] = b;
+                else newBuildings.push(b);
 
-                if (existingIndex >= 0) {
-                    newBuildings[existingIndex] = response.building;
-                } else {
-                    newBuildings.push(response.building);
-                }
-
-                // Update layout
                 const newLayout = [...prev.layout];
-                newLayout[y][x] = { type, level: 1, id: `${x}-${y}` };
-
-                return {
-                    ...prev,
-                    buildings: newBuildings,
-                    layout: newLayout
+                if (!newLayout[y]) newLayout[y] = [];
+                newLayout[y][x] = {
+                    type: b.type,
+                    level: b.level,
+                    id: `${x}-${y}`,
+                    isBuilding: (b as any).isBuilding,
+                    buildEndTime: (b as any).buildEndTime
                 };
+
+                return { ...prev, buildings: newBuildings, layout: newLayout };
             });
+
+            // Start client-side completion timer for UX
+            if ((b as any).isBuilding && b.buildEndTime) {
+                startBuildingTimer(x, y, b.buildEndTime);
+                setActiveBuildQueue(prev => [...prev, { x, y, type, endTime: b.buildEndTime! }]);
+            }
 
             setBuildMode(null);
             setShowBuildMenu(false);
             return true;
-
         } catch (error) {
-            console.error('❌ Failed to build building:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to build building';
-
-            if (errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token')) {
-                console.log('🔧 Simulating building construction locally');
-
-                // Mock building construction
-                setTown(prev => {
-                    if (!prev) return null;
-
-                    const newBuildings = [...prev.buildings];
-                    const existingIndex = newBuildings.findIndex(b => b.x === x && b.y === y);
-
-                    const newBuilding: BuildingPosition = { x, y, type, level: 1 };
-
-                    if (existingIndex >= 0) {
-                        newBuildings[existingIndex] = newBuilding;
-                    } else {
-                        newBuildings.push(newBuilding);
-                    }
-
-                    const newLayout = [...prev.layout];
-                    newLayout[y][x] = { type, level: 1, id: `${x}-${y}` };
-
-                    return {
-                        ...prev,
-                        buildings: newBuildings,
-                        layout: newLayout
-                    };
-                });
-
-                setBuildMode(null);
-                setShowBuildMenu(false);
-                setError('⚠️ Building constructed locally - backend not available');
-                return true;
-            }
-
             setError(errorMessage);
             return false;
         }
     };
 
-    // Upgrade a building
+    // Upgrade a building with timer
     const upgradeBuilding = async (x: number, y: number): Promise<boolean> => {
         if (!town) return false;
 
         try {
             setError(null);
 
-            console.log(`⬆️ Upgrading building at (${x}, ${y})`);
+            const resp = await townAPI.upgradeBuilding({ x, y });
+            const b = resp.building;
 
-            const response = await townAPI.upgradeBuilding({ x, y });
-            console.log('✅ Building upgraded:', response);
-
-            // Update town state
             setTown(prev => {
                 if (!prev) return null;
 
-                const newBuildings = prev.buildings.map(building =>
-                    building.x === x && building.y === y
-                        ? response.building
-                        : building
+                const newBuildings = prev.buildings.map(bb =>
+                    bb.x === x && bb.y === y ? { ...bb, ...b } : bb
                 );
 
                 const newLayout = [...prev.layout];
                 newLayout[y][x] = {
                     ...newLayout[y][x],
-                    level: response.building.level
+                    isUpgrading: (b as any).isUpgrading,
+                    upgradeEndTime: b.upgradeEndTime
                 };
 
-                return {
-                    ...prev,
-                    buildings: newBuildings,
-                    layout: newLayout
-                };
+                return { ...prev, buildings: newBuildings, layout: newLayout };
             });
 
-            return true;
-
-        } catch (error) {
-            console.error('❌ Failed to upgrade building:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to upgrade building';
-
-            if (errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token')) {
-                console.log('🔧 Simulating building upgrade locally');
-
-                // Mock building upgrade
-                setTown(prev => {
-                    if (!prev) return null;
-
-                    const newBuildings = prev.buildings.map(building =>
-                        building.x === x && building.y === y
-                            ? { ...building, level: building.level + 1 }
-                            : building
-                    );
-
-                    const newLayout = [...prev.layout];
-                    const currentBuilding = newBuildings.find(b => b.x === x && b.y === y);
-                    if (currentBuilding) {
-                        newLayout[y][x] = {
-                            ...newLayout[y][x],
-                            level: currentBuilding.level
-                        };
-                    }
-
-                    return {
-                        ...prev,
-                        buildings: newBuildings,
-                        layout: newLayout
-                    };
-                });
-
-                setError('⚠️ Building upgraded locally - backend not available');
-                return true;
+            if ((b as any).isUpgrading && b.upgradeEndTime) {
+                startUpgradeTimer(x, y, b.upgradeEndTime);
+                setActiveBuildQueue(prev => [...prev, { x, y, type: b.type, endTime: b.upgradeEndTime! }]);
             }
 
+            return true;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to upgrade building';
             setError(errorMessage);
             return false;
         }
@@ -412,7 +659,11 @@ const useTownLogic = () => {
     const handleCellClick = (x: number, y: number) => {
         if (!town) return;
 
-        const building = town.layout[y][x];
+        // Check if coordinates are within bounds
+        if (y >= 20 || x >= 20) return;
+
+        const building = town.layout[y]?.[x];
+        if (!building) return;
 
         if (buildMode && building.type === 'empty') {
             buildBuilding(x, y, buildMode);
@@ -432,6 +683,14 @@ const useTownLogic = () => {
         return buildingConfigs.filter(config => config.category === category);
     };
 
+    // Calculate gem cost for speedup
+    const calculateSpeedupCost = (endTime: string): number => {
+        const now = Date.now();
+        const end = new Date(endTime).getTime();
+        const timeLeft = Math.max(0, end - now);
+        return Math.ceil(timeLeft / 60000); // 1 gem per minute
+    };
+
     // Clear error
     const clearError = () => {
         setError(null);
@@ -448,6 +707,11 @@ const useTownLogic = () => {
         };
 
         initializeTown();
+
+        // Cleanup timers on unmount
+        return () => {
+            buildingTimers.forEach(timer => clearTimeout(timer));
+        };
     }, []);
 
     // Calculate pending resources over time
@@ -462,7 +726,7 @@ const useTownLogic = () => {
             const newPending: Record<string, number> = {};
 
             town.buildings.forEach(building => {
-                if (building.type === 'empty' || building.isUpgrading) return;
+                if (building.type === 'empty' || (building as any).isUpgrading || (building as any).isBuilding) return;
 
                 const config = getBuildingConfig(building.type);
                 if (!config?.production) return;
@@ -494,12 +758,14 @@ const useTownLogic = () => {
         showBuildMenu,
         pendingResources,
         collectingResources,
+        activeBuildQueue,
 
         // Actions
         loadTown,
         collectResources,
         buildBuilding,
         upgradeBuilding,
+        speedUpBuilding,
         handleCellClick,
 
         // UI actions
@@ -510,12 +776,14 @@ const useTownLogic = () => {
         // Utilities
         getBuildingConfig,
         getBuildingsByCategory,
+        calculateSpeedupCost,
         clearError,
 
         // Computed values
         isLoading: loading || collectingResources,
         hasError: !!error,
-        hasPendingResources: Object.values(pendingResources).some(amount => amount > 0)
+        hasPendingResources: Object.values(pendingResources).some(amount => amount > 0),
+        hasBuildingsInProgress: activeBuildQueue.length > 0
     };
 };
 

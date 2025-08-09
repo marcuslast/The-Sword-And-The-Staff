@@ -4,10 +4,18 @@ export interface BuildingPosition {
     type: string;
     level: number;
     lastCollected?: string;
+
+    // construction (build) timers/flags
+    buildStartTime?: string;
+    buildEndTime?: string;
+    isBuilding?: boolean;
+
+    // upgrade timers/flags
     upgradeStartTime?: string;
     upgradeEndTime?: string;
     isUpgrading?: boolean;
 }
+
 
 export interface BuildingConfig {
     type: string;
@@ -81,6 +89,17 @@ export interface UpgradeBuildingResponse {
     newResources: Record<string, number>;
 }
 
+export interface SpeedUpBuildingRequest {
+    x: number;
+    y: number;
+}
+
+export interface SpeedUpBuildingResponse {
+    message: string;
+    building: BuildingPosition;
+    newResources: Record<string, number>;
+}
+
 class TownAPI {
     private baseUrl = '/api/town';
 
@@ -108,19 +127,16 @@ class TownAPI {
         return response.json();
     }
 
-    // Get user's town
     async getTown(): Promise<TownResponse> {
         return this.request<TownResponse>('');
     }
 
-    // Collect pending resources
     async collectResources(): Promise<CollectResourcesResponse> {
         return this.request<CollectResourcesResponse>('/collect', {
             method: 'POST',
         });
     }
 
-    // Build a new building
     async buildBuilding(data: BuildBuildingRequest): Promise<BuildBuildingResponse> {
         return this.request<BuildBuildingResponse>('/build', {
             method: 'POST',
@@ -128,9 +144,15 @@ class TownAPI {
         });
     }
 
-    // Upgrade a building
     async upgradeBuilding(data: UpgradeBuildingRequest): Promise<UpgradeBuildingResponse> {
         return this.request<UpgradeBuildingResponse>('/upgrade', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async speedUpBuilding(data: SpeedUpBuildingRequest): Promise<SpeedUpBuildingResponse> {
+        return this.request<SpeedUpBuildingResponse>('/speedup', {
             method: 'POST',
             body: JSON.stringify(data),
         });
