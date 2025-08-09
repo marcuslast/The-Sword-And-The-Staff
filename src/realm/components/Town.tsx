@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import useTownLogic from '../hooks/useTownLogic';
 import useRealmLogic from '../hooks/useRealmLogic';
@@ -6,6 +6,10 @@ import useRealmLogic from '../hooks/useRealmLogic';
 interface TownProps {
     onBack?: () => void;
 }
+
+const getBuildingImageUrl = (type: string): string => {
+    return `/assets/buildings/${type}.png`;
+};
 
 interface BuildingTimerProps {
     endTime: string;
@@ -21,7 +25,6 @@ interface BuildingCellProps {
     config?: any;
 }
 
-// Building visual configurations
 const BUILDING_VISUALS: Record<string, {
     color: string;
     icon: string;
@@ -147,7 +150,12 @@ const BuildingTimer: React.FC<BuildingTimerProps> = ({ endTime, onComplete }) =>
     );
 };
 
-// Building cell component
+// Near your hex constants
+const HEX_RATIO = 0.866025403784; // width / height for point-top hex (≈ √3 / 2)
+// Use exact hex clip so edges meet cleanly
+const HEX_CLIP = 'polygon(50% 0%, 100% 25.2%, 100% 74.8%, 50% 100%, 0% 74.8%, 0% 25.2%)';
+
+// Building cell as a hex
 const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected, onClick, config }) => {
     const isEmpty = building.type === 'empty';
     const isConstructing = building.isBuilding;
@@ -158,9 +166,7 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
         shadowColor: 'shadow-gray-900/50'
     };
 
-    // Handle timer completion
     const handleTimerComplete = () => {
-        // Force a refresh of the town data
         window.location.reload();
     };
 
@@ -168,62 +174,97 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
         <button
             onClick={() => onClick(x, y)}
             className={`
-                relative aspect-square rounded-lg transition-all duration-200
-                ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 border-2 border-dashed border-green-600/30 hover:border-green-500/50' : ''}
-                ${!isEmpty ? `bg-gradient-to-br ${visual.color} shadow-lg ${visual.shadowColor}` : ''}
-                ${isSelected ? 'ring-4 ring-yellow-400/50 scale-105' : ''}
-                ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
-                hover:scale-105 active:scale-95
-            `}
+        relative w-full h-full transition-opacity duration-200
+        ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 hover:opacity-90' : `bg-gradient-to-br ${visual.color} ${visual.shadowColor}`}
+        ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
+        text-white overflow-hidden
+    `}
+            style={{
+                clipPath: HEX_CLIP,
+                transform: 'translateZ(0)' // reduce sub-pixel jitter
+            }}
         >
-            {/* Building Icon */}
-            {!isEmpty && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl md:text-3xl lg:text-4xl">
-                        {visual.icon}
-                    </span>
-                </div>
-            )}
 
-            {/* Empty slot indicator */}
-            {isEmpty && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-green-400 text-xl md:text-2xl">+</span>
-                </div>
-            )}
+        {/* Content */}
+            <div className="absolute inset-0">
+                {/* Fallback icon */}
+                {!isEmpty && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl md:text-3xl lg:text-4xl drop-shadow-sm">
+                            {visual.icon}
+                        </span>
+                    </div>
+                )}
 
-            {/* Level indicator */}
-            {!isEmpty && building.level > 0 && (
-                <div className="absolute -top-1 -left-1 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg z-10">
-                    {building.level}
-                </div>
-            )}
+                {/* Empty slot indicator */}
+                {isEmpty && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-green-400 text-xl md:text-2xl">+</span>
+                    </div>
+                )}
 
-            {/* Timer display */}
-            {isConstructing && building.buildEndTime && (
-                <BuildingTimer
-                    endTime={building.buildEndTime}
-                    onComplete={handleTimerComplete}
-                />
-            )}
-            {isUpgrading && building.upgradeEndTime && (
-                <BuildingTimer
-                    endTime={building.upgradeEndTime}
-                    onComplete={handleTimerComplete}
-                />
-            )}
+                {/* Level indicator */}
+                {!isEmpty && building.level > 0 && (
+                    <div className="absolute -top-1 -left-1 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg z-10">
+                        {building.level}
+                    </div>
+                )}
 
-            {/* Production indicator */}
-            {config?.production && building.level > 0 && !isConstructing && !isUpgrading && (
-                <div className="absolute top-1 right-1">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
-                </div>
-            )}
+                {/* Timer display */}
+                {isConstructing && building.buildEndTime && (
+                    <BuildingTimer endTime={building.buildEndTime} onComplete={handleTimerComplete} />
+                )}
+                {isUpgrading && building.upgradeEndTime && (
+                    <BuildingTimer endTime={building.upgradeEndTime} onComplete={handleTimerComplete} />
+                )}
+
+                {/* Production indicator */}
+                {config?.production && building.level > 0 && !isConstructing && !isUpgrading && (
+                    <div className="absolute top-1 right-1">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
+                    </div>
+                )}
+
+                {/* Selected outline following hex shape */}
+                {isSelected && (
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            clipPath: HEX_CLIP,
+                            boxShadow: 'inset 0 0 0 3px rgba(250, 204, 21, 0.6)'
+                        }}
+                    />
+                )}
+            </div>
         </button>
     );
 };
 
-// Main Town component with MongoDB integration
+// Helpers to build a rounded hex-shaped mask using axial coords (odd-q, point-top)
+function offsetToAxialOddQ(x: number, y: number) {
+    // point-top, column-based odd-q layout
+    const q = x;
+    const r = y - (x - (x & 1)) / 2;
+    return { q, r };
+}
+function cubeDistance(a: { q: number; r: number }, b: { q: number; r: number }) {
+    const aCube = { x: a.q, z: a.r, y: -a.q - a.r };
+    const bCube = { x: b.q, z: b.r, y: -b.q - b.r };
+    return Math.max(
+        Math.abs(aCube.x - bCube.x),
+        Math.abs(aCube.y - bCube.y),
+        Math.abs(aCube.z - bCube.z)
+    );
+}
+
+// Add this helper (odd-r, pointy-top)
+function offsetToAxialOddR(x: number, y: number) {
+    // pointy-top, row-based odd-r layout
+    const q = x - (y - (y & 1)) / 2;
+    const r = y;
+    return { q, r };
+}
+
 export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
     const { user } = useAuth();
     const townLogic = useTownLogic();
@@ -232,103 +273,70 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
     const [showBuildMenu, setShowBuildMenu] = useState(false);
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
 
-    // Load town and inventory data on mount
     useEffect(() => {
         const loadData = async () => {
             try {
-                await Promise.all([
-                    townLogic.loadTown(),
-                    realmLogic.loadInventory(false)
-                ]);
+                // Only load inventory here
+                await realmLogic.loadInventory(false);
             } catch (error) {
-                console.error('Failed to load town data:', error);
+                console.error('Failed to load realm inventory:', error);
             }
         };
         loadData();
     }, []);
 
-    // Auto-refresh town data every 30 seconds to check for completed timers
-    useEffect(() => {
-        const interval = setInterval(() => {
-            townLogic.loadTown(false);
-        }, 30000);
 
-        return () => clearInterval(interval);
-    }, []);
 
-    // Show notification
     const showNotification = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), 3000);
     };
 
-    // Handle cell click
     const handleCellClick = (x: number, y: number) => {
         if (!townLogic.town) return;
 
         const building = townLogic.town.buildings.find(b => b.x === x && b.y === y);
 
         if (!building || building.type === 'empty') {
-            // Empty cell - show build menu
             setSelectedBuilding({ x, y });
             setShowBuildMenu(true);
         } else {
-            // Existing building - show info
             setSelectedBuilding({ x, y });
             setShowBuildMenu(false);
         }
     };
 
-    // Build a new building
     const handleBuild = async (type: string) => {
         if (!selectedBuilding) return;
-
-        const success = await townLogic.buildBuilding(
-            selectedBuilding.x,
-            selectedBuilding.y,
-            type
-        );
-
+        const success = await townLogic.buildBuilding(selectedBuilding.x, selectedBuilding.y, type);
         if (success) {
             showNotification('Construction started!', 'success');
             setShowBuildMenu(false);
             setSelectedBuilding(null);
-            // Refresh inventory to show updated resources
             await realmLogic.loadInventory(false);
         } else if (townLogic.error) {
             showNotification(townLogic.error, 'error');
         }
     };
 
-    // Upgrade a building
     const handleUpgrade = async () => {
         if (!selectedBuilding) return;
-
-        const success = await townLogic.upgradeBuilding(
-            selectedBuilding.x,
-            selectedBuilding.y
-        );
-
+        const success = await townLogic.upgradeBuilding(selectedBuilding.x, selectedBuilding.y);
         if (success) {
             showNotification('Upgrade started!', 'success');
             setSelectedBuilding(null);
-            // Refresh inventory to show updated resources
             await realmLogic.loadInventory(false);
         } else if (townLogic.error) {
             showNotification(townLogic.error, 'error');
         }
     };
 
-    // Speed up construction
     const handleSpeedUp = async () => {
         if (!selectedBuilding) return;
-
         const building = townLogic.town?.buildings.find(
             b => b.x === selectedBuilding.x && b.y === selectedBuilding.y
         );
-
         if (!building) return;
-
         const endTime = building.isBuilding ? building.buildEndTime : building.upgradeEndTime;
         if (!endTime) return;
 
@@ -340,19 +348,13 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
             return;
         }
 
-        const success = await townLogic.speedUpBuilding(
-            selectedBuilding.x,
-            selectedBuilding.y,
-            gemCost
-        );
-
+        const success = await townLogic.speedUpBuilding(selectedBuilding.x, selectedBuilding.y, gemCost);
         if (success) {
             showNotification('Speed up complete!', 'success');
             await realmLogic.loadInventory(false);
         }
     };
 
-    // Collect resources
     const handleCollectResources = async () => {
         const success = await townLogic.collectResources();
         if (success) {
@@ -363,7 +365,6 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         }
     };
 
-    // Check if player can afford a building
     const canAffordBuilding = (buildingType: string): boolean => {
         const config = townLogic.getBuildingConfig(buildingType);
         if (!config || !realmLogic.inventory?.resources) return false;
@@ -375,7 +376,6 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
             const playerAmount = (resources as any)[resource] || 0;
             if (playerAmount < amount) return false;
         }
-
         return true;
     };
 
@@ -398,17 +398,17 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         );
     }
 
-    // Create grid from buildings
+    // Create full rectangular grid, then we'll mask to a rounded hex area
     const createGrid = () => {
-        const grid = Array(townLogic.town!.mapSize.height).fill(null).map(() =>
-            Array(townLogic.town!.mapSize.width).fill(null).map(() => ({
-                type: 'empty',
-                level: 0
-            }))
+        const h = townLogic.town!.mapSize.height;
+        const w = townLogic.town!.mapSize.width;
+
+        const grid = Array.from({ length: h }, () =>
+            Array.from({ length: w }, () => ({ type: 'empty', level: 0 }))
         );
 
         townLogic.town!.buildings.forEach(building => {
-            if (building.y < grid.length && building.x < grid[0].length) {
+            if (building.y < h && building.x < w) {
                 grid[building.y][building.x] = building;
             }
         });
@@ -416,7 +416,21 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         return grid;
     };
 
+
     const grid = createGrid();
+
+    // Rounded hex mask (so map looks more circular)
+    const width = townLogic.town.mapSize.width;
+    const height = townLogic.town.mapSize.height;
+
+    const centerOffset = { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+    const centerAxial = offsetToAxialOddR(centerOffset.x, centerOffset.y);
+    const radius = Math.floor(Math.min(width, height) / 2); // tweak if you want tighter/looser mask
+
+    const isInRoundedHex = (x: number, y: number) => {
+        const a = offsetToAxialOddR(x, y);
+        return cubeDistance(a, centerAxial) <= radius;
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900">
@@ -502,22 +516,56 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
 
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-4 py-6">
-                {/* Town Grid */}
+                {/* Honeycomb Map */}
                 <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-4 mb-6">
-                    <div className={`grid grid-cols-${townLogic.town.mapSize.width} gap-1 sm:gap-2 max-w-4xl mx-auto`}>
+                    <div
+                        className="relative mx-auto"
+                        style={{
+                            ['--hex-w' as any]: 'min(12vw, 96px)',                        // hex width
+                            ['--hex-h' as any]: `calc(var(--hex-w) / 0.866025403784)`,     // hex height = W / (√3/2)
+                            // Total width: cols * W + extra 0.5W for the odd row shift
+                            width: `calc((${townLogic.town.mapSize.width} + 0.5) * var(--hex-w))`,
+                            // Total height: (0.75*(rows-1) + 1) * H
+                            height: `calc((0.75 * (${townLogic.town.mapSize.height} - 1) + 1) * var(--hex-h))`
+                        }}
+                    >
                         {grid.map((row, y) =>
                             row.map((cell, x) => {
+                                if (!isInRoundedHex(x, y)) return null;
+
+                                // odd-r, pointy-top placement:
+                                // - each row moves down by 0.75 * H
+                                // - each column moves right by 1.0 * W
+                                // - odd rows get an extra +0.5 * W shift
+                                const left = y % 2 === 1
+                                    ? `calc(${x} * var(--hex-w) + (var(--hex-w) / 2))`
+                                    : `calc(${x} * var(--hex-w))`;
+                                const top = `calc(${y} * (var(--hex-h) * 0.75))`;
+
                                 const config = townLogic.getBuildingConfig(cell.type);
+
                                 return (
-                                    <BuildingCell
+                                    <div
                                         key={`${x}-${y}`}
-                                        building={cell}
-                                        x={x}
-                                        y={y}
-                                        isSelected={selectedBuilding?.x === x && selectedBuilding?.y === y}
-                                        onClick={handleCellClick}
-                                        config={config}
-                                    />
+                                        className="absolute"
+                                        style={{
+                                            left,
+                                            top,
+                                            width: 'var(--hex-w)',
+                                            height: 'var(--hex-h)',
+                                            // optional: reduce subpixel jitter on some GPUs
+                                            transform: 'translateZ(0)'
+                                        }}
+                                    >
+                                        <BuildingCell
+                                            building={cell}
+                                            x={x}
+                                            y={y}
+                                            isSelected={selectedBuilding?.x === x && selectedBuilding?.y === y}
+                                            onClick={handleCellClick}
+                                            config={config}
+                                        />
+                                    </div>
                                 );
                             })
                         )}
