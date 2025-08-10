@@ -41,7 +41,7 @@ export interface BuildingConfig {
     emoji: string; // Fallback for missing images
 }
 
-// Troop types and configurations
+// Troop related interfaces
 export interface TroopStats {
     attack: number;
     defense: number;
@@ -150,7 +150,7 @@ export interface SpeedUpBuildingResponse {
     newResources: Record<string, number>;
 }
 
-// Training-related types
+// Training related request/response interfaces
 export interface TrainTroopsRequest {
     x: number;
     y: number;
@@ -240,7 +240,7 @@ class TownAPI {
         return response.json();
     }
 
-    // Building operations
+    // Accept AbortSignal so callers can cancel
     async getTown(signal?: AbortSignal): Promise<TownResponse> {
         return this.request<TownResponse>('', { signal });
     }
@@ -276,7 +276,7 @@ class TownAPI {
         });
     }
 
-    // Training operations
+    // NEW TRAINING METHODS
     async trainTroops(data: TrainTroopsRequest, signal?: AbortSignal): Promise<TrainTroopsResponse> {
         return this.request<TrainTroopsResponse>('/train', {
             method: 'POST',

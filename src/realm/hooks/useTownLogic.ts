@@ -5,6 +5,9 @@ import {
     TownResponse,
     Town,
     BuildingConfig,
+    TroopConfig,
+    Army,
+    TrainingQueueItem,
 } from '../services/townApi';
 
 // Polling and backoff configuration
@@ -16,50 +19,6 @@ const FIRST_FAIL_RETRY_MS = 3_000;  // retry quickly on the very first failure
 const INITIAL_LOAD_DELAY = 100;     // Small delay before first load to prevent flash
 
 type PendingResources = Record<string, number>;
-
-// Training types - match backend definitions
-interface TrainingQueueItem {
-    _id?: string;
-    troopType: string;
-    level: number;
-    quantity: number;
-    startTime: string;
-    endTime: string;
-    buildingX: number;
-    buildingY: number;
-}
-
-interface TroopConfig {
-    type: string;
-    name: string;
-    description: string;
-    buildingRequired: string;
-    imageUrl: string;
-    levels: Array<{
-        level: number;
-        stats: {
-            attack: number;
-            defense: number;
-            health: number;
-            speed: number;
-            carryCapacity: number;
-        };
-        trainingCost: Record<string, number>;
-        trainingTime: number;
-        populationCost: number;
-    }>;
-}
-
-// Army type matching backend
-interface Army {
-    archers: Record<number, number>;
-    ballistas: Record<number, number>;
-    berserkers: Record<number, number>;
-    horsemen: Record<number, number>;
-    lancers: Record<number, number>;
-    spies: Record<number, number>;
-    swordsmen: Record<number, number>;
-}
 
 export default function useTownLogic() {
     // Data

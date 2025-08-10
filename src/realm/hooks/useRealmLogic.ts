@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { orbAPI, Orb, OrbRarity, OrbContents } from '../services/orbApi';
 
 export interface UserInventory {
@@ -38,10 +38,6 @@ export interface GameCompletionData {
     orbsToAward?: number;
 }
 
-export interface GameReward {
-    rarity: OrbRarity;
-}
-
 export interface GameCompletionResult {
     success: boolean;
     rewards?: {
@@ -73,6 +69,13 @@ const useRealmLogic = () => {
     const [completingGame, setCompletingGame] = useState(false);
     const [lastGameRewards, setLastGameRewards] = useState<GameCompletionResult | null>(null);
 
+    // Rate limiting and debouncing
+    const lastLoadTime = useRef<number>(0);
+    const loadTimeoutRef = useRef<number | null>(null);
+    const rateLimitedUntil = useRef<number>(0);
+    const MIN_LOAD_INTERVAL = 5000; // 5 seconds between loads
+    const RATE_LIMIT_BACKOFF = 60000; // 1 minute backoff after 429
+
     // Helper function to validate rarity
     const isValidRarity = (rarity: string): rarity is OrbRarity => {
         return ['common', 'uncommon', 'rare', 'very rare', 'legendary'].includes(rarity);
@@ -90,8 +93,46 @@ const useRealmLogic = () => {
         }
     });
 
-    // Load inventory and orbs with fallback
-    const loadInventory = async (showLoading: boolean = true) => {
+    // Check if we're currently rate limited
+    const isRateLimited = (): boolean => {
+        return Date.now() < rateLimitedUntil.current;
+    };
+
+    // Check if enough time has passed since last load
+    const canLoadNow = (): boolean => {
+        return Date.now() - lastLoadTime.current >= MIN_LOAD_INTERVAL;
+    };
+
+    // Debounced inventory loading with rate limit handling
+    const debouncedLoadInventory = useCallback((showLoading: boolean = false, force: boolean = false) => {
+        // Clear any existing timeout
+        if (loadTimeoutRef.current) {
+            clearTimeout(loadTimeoutRef.current);
+            loadTimeoutRef.current = null;
+        }
+
+        // If rate limited and not forced, skip
+        if (isRateLimited() && !force) {
+            console.log('⏸️ Skipping inventory load - rate limited');
+            return Promise.resolve();
+        }
+
+        // If recently loaded and not forced, debounce
+        if (!canLoadNow() && !force) {
+            console.log('⏸️ Debouncing inventory load');
+            return new Promise<void>((resolve) => {
+                const delay = MIN_LOAD_INTERVAL - (Date.now() - lastLoadTime.current);
+                loadTimeoutRef.current = window.setTimeout(() => {
+                    loadInventoryInternal(showLoading).then(() => resolve()).catch(() => resolve());
+                }, delay);
+            });
+        }
+
+        return loadInventoryInternal(showLoading);
+    }, []);
+
+    // Internal inventory loading with rate limit handling
+    const loadInventoryInternal = async (showLoading: boolean = true) => {
         try {
             if (showLoading) setLoading(true);
             setError(null);
@@ -104,14 +145,32 @@ const useRealmLogic = () => {
 
             setOrbs(data.orbs);
             setInventory(data.summary);
+            lastLoadTime.current = Date.now();
+
+            // Reset rate limit flag on success
+            rateLimitedUntil.current = 0;
+
             await getRecentOpenings();
             return data;
 
         } catch (error) {
             console.error('❌ Failed to load inventory from API:', error);
 
-            // Check if it's the HTML error (API endpoint issue)
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+            // Handle rate limiting specifically
+            if (errorMessage.includes('429') || errorMessage.includes('Too many requests')) {
+                console.warn('🚫 Rate limited - backing off');
+                rateLimitedUntil.current = Date.now() + RATE_LIMIT_BACKOFF;
+                setError('⚠️ Too many requests - please wait a moment before refreshing');
+
+                // Don't throw on rate limit if we already have inventory data
+                if (inventory) {
+                    return;
+                }
+            }
+
+            // Check if it's the HTML error (API endpoint issue)
             const isHTMLError = errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token');
 
             if (isHTMLError) {
@@ -128,13 +187,15 @@ const useRealmLogic = () => {
                 setInventory(mockData.summary);
 
                 return mockData;
-            } else {
-                // Other errors (auth, network, etc.)
+            } else if (!errorMessage.includes('429')) {
+                // Other errors (auth, network, etc.) - but not rate limiting
                 setError(`Failed to load inventory: ${errorMessage}`);
 
-                // Still provide fallback data
-                setOrbs([]);
-                setInventory(getMockInventory());
+                // Still provide fallback data if we don't have any
+                if (!inventory) {
+                    setOrbs([]);
+                    setInventory(getMockInventory());
+                }
 
                 throw error;
             }
@@ -142,6 +203,16 @@ const useRealmLogic = () => {
             if (showLoading) setLoading(false);
         }
     };
+
+    // Public method that uses debouncing
+    const loadInventory = useCallback((showLoading: boolean = true) => {
+        return debouncedLoadInventory(showLoading, false);
+    }, [debouncedLoadInventory]);
+
+    // Force reload method (bypasses debouncing and rate limiting)
+    const forceLoadInventory = useCallback((showLoading: boolean = true) => {
+        return debouncedLoadInventory(showLoading, true);
+    }, [debouncedLoadInventory]);
 
     // Complete game and award rewards with fallback
     const completeGame = async (gameData: GameCompletionData): Promise<GameCompletionResult> => {
@@ -349,7 +420,7 @@ const useRealmLogic = () => {
             setRecentOpenings(transformedOpenings);
         } catch (error) {
             console.error('Failed to load recent openings:', error);
-            setError('Failed to load recent openings');
+            // Don't set error for this non-critical operation
         }
     };
 
@@ -382,7 +453,7 @@ const useRealmLogic = () => {
     useEffect(() => {
         const initializeRealm = async () => {
             try {
-                await loadInventory();
+                await forceLoadInventory(); // Use force load on mount
             } catch (error) {
                 console.error('Failed to initialize realm:', error);
                 // Error is already handled in loadInventory, just log here
@@ -390,6 +461,15 @@ const useRealmLogic = () => {
         };
 
         initializeRealm();
+    }, [forceLoadInventory]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (loadTimeoutRef.current) {
+                clearTimeout(loadTimeoutRef.current);
+            }
+        };
     }, []);
 
     return {
@@ -409,6 +489,7 @@ const useRealmLogic = () => {
 
         // Data loading
         loadInventory,
+        forceLoadInventory, // Expose force load method
 
         // Game completion
         completeGame,
@@ -429,6 +510,7 @@ const useRealmLogic = () => {
         isLoading: loading || completingGame,
         hasOrbs: orbs.length > 0,
         hasError: !!error,
+        isRateLimited: isRateLimited(), // Expose rate limit status
     };
 };
 
