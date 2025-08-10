@@ -20,7 +20,7 @@
     overflow: auto;
 }
 
-.training-center {
+.training-center{
     position: fixed;           /* full-screen layer */
     inset: 0;                  /* top:0; right:0; bottom:0; left:0 */
     width: 100vw;
@@ -45,7 +45,16 @@
 }
 
 /* Ensure all children sit above the overlay */
-.training-center > * {
+.training-center > *{
     position: relative;
     z-index: 1;
+}
+
+.army-background {
+    background-color: rgba(0, 0, 0, 1);
+    background-image: url('../src/assets/images/backgrounds/horse-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }

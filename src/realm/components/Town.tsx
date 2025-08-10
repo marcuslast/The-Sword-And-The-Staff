@@ -898,42 +898,400 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                 )}
 
                 {activeView === 'army' && (
-                    <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-6">
-                        <h2 className="text-2xl font-bold text-white mb-6 text-center">🏹 Your Army</h2>
+                    <div className="space-y-6 army-background">
+                        {/* Army Overview Dashboard */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Total Troops */}
+                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-center">
+                                <div className="text-3xl font-bold text-white mb-2">{getTotalTroops()}</div>
+                                <div className="text-blue-100 text-sm">Total Units</div>
+                                <div className="text-blue-200 text-xs mt-1">Ready for Battle</div>
+                            </div>
 
+                            {/* Army Power */}
+                            <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-xl p-6 text-center">
+                                <div className="text-3xl font-bold text-white mb-2">
+                                    {(() => {
+                                        let totalPower = 0;
+                                        if (townLogic.army && townLogic.troopConfigs) {
+                                            Object.entries(townLogic.army).forEach(([troopType, troopLevels]) => {
+                                                const config = townLogic.getTroopConfig(troopType);
+                                                if (config) {
+                                                    Object.entries(troopLevels as Record<string, number>).forEach(([level, count]) => {
+                                                        const levelStats = config.levels?.[parseInt(level) - 1]?.stats;
+                                                        if (levelStats) {
+                                                            const unitPower = levelStats.attack + levelStats.defense + (levelStats.health / 10);
+                                                            totalPower += unitPower * (Number(count) || 0);
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                        return Math.round(totalPower).toLocaleString();
+                                    })()}
+                                </div>
+                                <div className="text-red-100 text-sm">Combat Power</div>
+                                <div className="text-red-200 text-xs mt-1">Attack + Defense + HP/10</div>
+                            </div>
+
+                            {/* Active Troop Types */}
+                            <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-xl p-6 text-center">
+                                <div className="text-3xl font-bold text-white mb-2">
+                                    {Object.values(townLogic.army || {}).filter(troopLevels =>
+                                        Object.values(troopLevels as Record<string, number>).some(count => (Number(count) || 0) > 0)
+                                    ).length}
+                                </div>
+                                <div className="text-green-100 text-sm">Troop Types</div>
+                                <div className="text-green-200 text-xs mt-1">Trained & Ready</div>
+                            </div>
+
+                            {/* Highest Level */}
+                            <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-6 text-center">
+                                <div className="text-3xl font-bold text-white mb-2">
+                                    {(() => {
+                                        let maxLevel = 0;
+                                        if (townLogic.army) {
+                                            Object.values(townLogic.army).forEach(troopLevels => {
+                                                Object.keys(troopLevels as Record<string, number>).forEach(level => {
+                                                    const levelNum = parseInt(level);
+                                                    if (levelNum > maxLevel && (troopLevels as any)[level] > 0) {
+                                                        maxLevel = levelNum;
+                                                    }
+                                                });
+                                            });
+                                        }
+                                        return maxLevel;
+                                    })()}
+                                </div>
+                                <div className="text-purple-100 text-sm">Highest Level</div>
+                                <div className="text-purple-200 text-xs mt-1">Elite Forces</div>
+                            </div>
+                        </div>
+
+                        {/* Main Army Display */}
                         {getTotalTroops() === 0 ? (
-                            <div className="text-center py-12">
-                                <div className="text-6xl mb-4">⚔️</div>
-                                <p className="text-white/80 text-lg">No troops trained yet</p>
-                                <p className="text-white/60">Train troops in military buildings!</p>
+                            <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-12 text-center">
+                                <div className="text-8xl mb-6">⚔️</div>
+                                <h3 className="text-2xl font-bold text-white mb-4">No Army Yet</h3>
+                                <p className="text-white/80 text-lg mb-2">Your kingdom needs defenders!</p>
+                                <p className="text-white/60 mb-6">Train troops in military buildings to build your army.</p>
+                                <button
+                                    onClick={() => setActiveView('town')}
+                                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-lg font-bold hover:from-red-700 hover:to-red-800 transition-all"
+                                >
+                                    🏗️ View Military Buildings
+                                </button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(townLogic.army || {}).map(([troopType, troopLevels]) => {
-                                    const totalCount = Object.values(troopLevels as Record<string, number>).reduce((sum, count) => sum + (Number(count) || 0), 0);
-                                    if (totalCount === 0) return null;
+                            <div className="space-y-6">
+                                {/* Troop Cards Grid */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {Object.entries(townLogic.army || {})
+                                        .filter(([_, troopLevels]) =>
+                                            Object.values(troopLevels as Record<string, number>).some(count => (Number(count) || 0) > 0)
+                                        )
+                                        .map(([troopType, troopLevels]) => {
+                                            const config = townLogic.getTroopConfig(troopType);
+                                            const icon = TROOP_ICONS[troopType] || '⚔️';
+                                            const totalCount = Object.values(troopLevels as Record<string, number>).reduce((sum, count) => sum + (Number(count) || 0), 0);
 
-                                    const config = townLogic.getTroopConfig(troopType);
-                                    const icon = TROOP_ICONS[troopType] || '⚔️';
+                                            // Calculate total power for this troop type
+                                            let troopPower = 0;
+                                            if (config) {
+                                                Object.entries(troopLevels as Record<string, number>).forEach(([level, count]) => {
+                                                    const levelStats = config.levels?.[parseInt(level) - 1]?.stats;
+                                                    if (levelStats) {
+                                                        const unitPower = levelStats.attack + levelStats.defense + (levelStats.health / 10);
+                                                        troopPower += unitPower * (Number(count) || 0);
+                                                    }
+                                                });
+                                            }
 
-                                    return (
-                                        <div key={troopType} className="bg-white/10 rounded-lg p-4">
-                                            {/* ... rest of your army display code ... */}
-                                            <div className="space-y-2">
-                                                {Object.entries(troopLevels as Record<string, number>).map(([level, count]) => {
-                                                    const numCount = Number(count) || 0;
-                                                    if (numCount === 0) return null;
-                                                    return (
-                                                        <div key={level} className="flex justify-between text-sm">
-                                                            <span className="text-white/80">Level {level}:</span>
-                                                            <span className="text-white font-semibold">{numCount}</span>
+                                            // Get highest level stats for display
+                                            const levels = Object.keys(troopLevels as Record<string, number>)
+                                                .filter(level => (troopLevels as any)[level] > 0)
+                                                .map(Number)
+                                                .sort((a, b) => b - a);
+                                            const highestLevel = levels[0];
+                                            const highestLevelStats = config?.levels?.[highestLevel - 1]?.stats;
+
+                                            return (
+                                                <div key={troopType} className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700/50 overflow-hidden hover:border-gray-600/50 transition-all group">
+                                                    {/* Header with Image */}
+                                                    <div className="relative p-6 pb-4">
+                                                        <div className="flex items-center gap-4 mb-4">
+                                                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-700 flex items-center justify-center relative">
+                                                                <img
+                                                                    src={`/components/training/${troopType}.jpg`}
+                                                                    alt={config?.name || troopType}
+                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                                                    onError={(e) => {
+                                                                        e.currentTarget.style.display = 'none';
+                                                                        const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                                                                        if (nextSibling) nextSibling.style.display = 'flex';
+                                                                    }}
+                                                                />
+                                                                <div className="hidden w-full h-full items-center justify-center text-3xl">
+                                                                    {icon}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <h3 className="text-xl font-bold text-white">{config?.name || troopType}</h3>
+                                                                <p className="text-gray-400 text-sm">{config?.description || 'Elite fighting force'}</p>
+                                                                <div className="flex items-center gap-4 mt-2">
+                                                                    <span className="text-yellow-400 font-bold text-lg">{totalCount.toLocaleString()}</span>
+                                                                    <span className="text-red-400 font-semibold">{Math.round(troopPower).toLocaleString()} Power</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    );
-                                                })}
+                                                    </div>
+
+                                                    {/* Level Breakdown */}
+                                                    <div className="px-6 pb-4">
+                                                        <div className="bg-black/30 rounded-lg p-4">
+                                                            <h4 className="text-gray-300 text-sm font-semibold mb-3">Unit Levels:</h4>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                {Object.entries(troopLevels as Record<string, number>)
+                                                                    .filter(([_, count]) => (Number(count) || 0) > 0)
+                                                                    .sort(([a], [b]) => parseInt(b) - parseInt(a))
+                                                                    .map(([level, count]) => (
+                                                                        <div key={level} className="bg-gray-800/60 rounded-lg p-2 text-center">
+                                                                            <div className="text-white text-sm font-bold">Lvl {level}</div>
+                                                                            <div className="text-yellow-400 text-xs font-semibold">{(Number(count) || 0).toLocaleString()}</div>
+                                                                        </div>
+                                                                    ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Stats Display (Highest Level) */}
+                                                    {highestLevelStats && (
+                                                        <div className="px-6 pb-4">
+                                                            <div className="bg-black/30 rounded-lg p-4">
+                                                                <h4 className="text-gray-300 text-sm font-semibold mb-3">Elite Stats (Level {highestLevel}):</h4>
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-red-400">⚔️</span>
+                                                                        <span className="text-white text-sm">{highestLevelStats.attack}</span>
+                                                                        <span className="text-gray-400 text-xs">ATK</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-blue-400">🛡️</span>
+                                                                        <span className="text-white text-sm">{highestLevelStats.defense}</span>
+                                                                        <span className="text-gray-400 text-xs">DEF</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-green-400">❤️</span>
+                                                                        <span className="text-white text-sm">{highestLevelStats.health}</span>
+                                                                        <span className="text-gray-400 text-xs">HP</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-yellow-400">⚡</span>
+                                                                        <span className="text-white text-sm">{highestLevelStats.speed}</span>
+                                                                        <span className="text-gray-400 text-xs">SPD</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Quick Actions */}
+                                                    <div className="px-6 pb-6">
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    // Find a building that can train this troop type
+                                                                    const availableBuilding = townLogic.town?.buildings.find(building =>
+                                                                        building.type === config?.buildingRequired &&
+                                                                        building.level > 0 &&
+                                                                        !building.isBuilding &&
+                                                                        !building.isUpgrading
+                                                                    );
+
+                                                                    if (availableBuilding) {
+                                                                        setSelectedBuilding({ x: availableBuilding.x, y: availableBuilding.y });
+                                                                        setSelectedTroopType(troopType);
+                                                                        setShowTrainingMenu(true);
+                                                                        setActiveView('town');
+                                                                    } else {
+                                                                        showNotification(`No available ${config?.buildingRequired.replace('_', ' ')} to train more ${config?.name}`, 'error');
+                                                                    }
+                                                                }}
+                                                                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white text-sm py-2 px-3 rounded-lg font-semibold transition-all"
+                                                            >
+                                                                🎯 Train More
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    // Show detailed stats
+                                                                    showNotification(`${config?.name}: ${totalCount} units with ${Math.round(troopPower)} total power`, 'info');
+                                                                }}
+                                                                className="bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-all"
+                                                                title="View Details"
+                                                            >
+                                                                📊
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+
+                                {/* Army Analysis */}
+                                <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4">⚡ Army Analysis</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {/* Composition Chart */}
+                                        <div className="bg-gray-800/50 rounded-xl p-4">
+                                            <h4 className="text-gray-300 text-sm font-semibold mb-3">Force Composition</h4>
+                                            <div className="space-y-2">
+                                                {Object.entries(townLogic.army || {})
+                                                    .filter(([_, troopLevels]) =>
+                                                        Object.values(troopLevels as Record<string, number>).some(count => (Number(count) || 0) > 0)
+                                                    )
+                                                    .map(([troopType, troopLevels]) => {
+                                                        const count = Object.values(troopLevels as Record<string, number>).reduce((sum, c) => sum + (Number(c) || 0), 0);
+                                                        const percentage = getTotalTroops() > 0 ? Math.round((count / getTotalTroops()) * 100) : 0;
+                                                        const config = townLogic.getTroopConfig(troopType);
+
+                                                        return (
+                                                            <div key={troopType} className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-sm">{TROOP_ICONS[troopType] || '⚔️'}</span>
+                                                                    <span className="text-white text-sm">{config?.name || troopType}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-16 bg-gray-700 rounded-full h-2">
+                                                                        <div
+                                                                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                                                            style={{ width: `${percentage}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-gray-300 text-xs w-10 text-right">{percentage}%</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                             </div>
                                         </div>
-                                    );
-                                })}
+
+                                        {/* Combat Readiness */}
+                                        <div className="bg-gray-800/50 rounded-xl p-4">
+                                            <h4 className="text-gray-300 text-sm font-semibold mb-3">Combat Readiness</h4>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-400 text-sm">Offensive Power</span>
+                                                    <span className="text-red-400 font-semibold">
+                                        {(() => {
+                                            let totalAttack = 0;
+                                            if (townLogic.army && townLogic.troopConfigs) {
+                                                Object.entries(townLogic.army).forEach(([troopType, troopLevels]) => {
+                                                    const config = townLogic.getTroopConfig(troopType);
+                                                    if (config) {
+                                                        Object.entries(troopLevels as Record<string, number>).forEach(([level, count]) => {
+                                                            const levelStats = config.levels?.[parseInt(level) - 1]?.stats;
+                                                            if (levelStats) {
+                                                                totalAttack += levelStats.attack * (Number(count) || 0);
+                                                            }
+                                                        });
+                                                    }
+                                                });
+                                            }
+                                            return Math.round(totalAttack).toLocaleString();
+                                        })()}
+                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-400 text-sm">Defensive Power</span>
+                                                    <span className="text-blue-400 font-semibold">
+                                        {(() => {
+                                            let totalDefense = 0;
+                                            if (townLogic.army && townLogic.troopConfigs) {
+                                                Object.entries(townLogic.army).forEach(([troopType, troopLevels]) => {
+                                                    const config = townLogic.getTroopConfig(troopType);
+                                                    if (config) {
+                                                        Object.entries(troopLevels as Record<string, number>).forEach(([level, count]) => {
+                                                            const levelStats = config.levels?.[parseInt(level) - 1]?.stats;
+                                                            if (levelStats) {
+                                                                totalDefense += levelStats.defense * (Number(count) || 0);
+                                                            }
+                                                        });
+                                                    }
+                                                });
+                                            }
+                                            return Math.round(totalDefense).toLocaleString();
+                                        })()}
+                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-400 text-sm">Total Health</span>
+                                                    <span className="text-green-400 font-semibold">
+                                        {(() => {
+                                            let totalHealth = 0;
+                                            if (townLogic.army && townLogic.troopConfigs) {
+                                                Object.entries(townLogic.army).forEach(([troopType, troopLevels]) => {
+                                                    const config = townLogic.getTroopConfig(troopType);
+                                                    if (config) {
+                                                        Object.entries(troopLevels as Record<string, number>).forEach(([level, count]) => {
+                                                            const levelStats = config.levels?.[parseInt(level) - 1]?.stats;
+                                                            if (levelStats) {
+                                                                totalHealth += levelStats.health * (Number(count) || 0);
+                                                            }
+                                                        });
+                                                    }
+                                                });
+                                            }
+                                            return Math.round(totalHealth).toLocaleString();
+                                        })()}
+                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Quick Actions */}
+                                        <div className="bg-gray-800/50 rounded-xl p-4">
+                                            <h4 className="text-gray-300 text-sm font-semibold mb-3">Army Actions</h4>
+                                            <div className="space-y-2">
+                                                <button
+                                                    onClick={() => setShowTrainingCenter(true)}
+                                                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all"
+                                                >
+                                                    🏛️ Training Center
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveView('training')}
+                                                    className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all"
+                                                >
+                                                    ⏱️ View Training Queue
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveView('town')}
+                                                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all"
+                                                >
+                                                    🏗️ Military Buildings
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const armyDetails = Object.entries(townLogic.army || {})
+                                                            .filter(([_, levels]) => Object.values(levels as Record<string, number>).some(c => c > 0))
+                                                            .map(([type, levels]) => {
+                                                                const config = townLogic.getTroopConfig(type);
+                                                                const total = Object.values(levels as Record<string, number>).reduce((s, c) => s + c, 0);
+                                                                return `${config?.name || type}: ${total}`;
+                                                            })
+                                                            .join(', ');
+
+                                                        showNotification(`Army: ${armyDetails || 'No troops'}`, 'info');
+                                                    }}
+                                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all"
+                                                >
+                                                    📋 Army Report
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
