@@ -29,13 +29,13 @@ export interface TrainingQueueItem {
 }
 
 export interface Army {
-    archers: Record<number, number>;
-    ballistas: Record<number, number>;
-    berserkers: Record<number, number>;
-    horsemen: Record<number, number>;
-    lancers: Record<number, number>;
-    spies: Record<number, number>;
-    swordsmen: Record<number, number>;
+    archers: Record<string, number>;
+    ballistas: Record<string, number>;
+    berserkers: Record<string, number>;
+    horsemen: Record<string, number>;
+    lancers: Record<string, number>;
+    spies: Record<string, number>;
+    swordsmen: Record<string, number>;
 }
 
 export interface IUser extends Document {

@@ -79,13 +79,13 @@ export interface TrainingQueueItem {
 }
 
 export interface Army {
-    archers: Record<number, number>;
-    ballistas: Record<number, number>;
-    berserkers: Record<number, number>;
-    horsemen: Record<number, number>;
-    lancers: Record<number, number>;
-    spies: Record<number, number>;
-    swordsmen: Record<number, number>;
+    archers: Record<string, number>;    // ← Change from number to string keys
+    ballistas: Record<string, number>;  // ← Change from number to string keys
+    berserkers: Record<string, number>; // ← Change from number to string keys
+    horsemen: Record<string, number>;   // ← Change from number to string keys
+    lancers: Record<string, number>;    // ← Change from number to string keys
+    spies: Record<string, number>;      // ← Change from number to string keys
+    swordsmen: Record<string, number>;  // ← Change from number to string keys
 }
 
 export interface Town {
@@ -196,8 +196,6 @@ export class RateLimitError extends Error {
 class TownAPI {
     private baseUrl = '/api/town';
 
-    // Replace your request method in townApi.ts with this enhanced version:
-
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
@@ -213,21 +211,7 @@ class TownAPI {
             ...options,
         });
 
-        console.log(`🌐 ${options.method || 'GET'} ${this.baseUrl}${endpoint}`);
-        console.log('📤 Request body:', options.body);
-        console.log('📥 Response status:', response.status);
-
         if (!response.ok) {
-            // Get the detailed error response
-            let errorData;
-            try {
-                errorData = await response.json();
-                console.error('❌ Error response:', errorData);
-            } catch (parseError) {
-                console.error('❌ Failed to parse error response');
-                errorData = {};
-            }
-
             if (response.status === 429) {
                 const retryAfterHeader = response.headers.get('Retry-After');
                 let retryAfterMs: number | undefined;
@@ -242,33 +226,18 @@ class TownAPI {
                         }
                     }
                 }
+                const errorData = await response.json().catch(() => ({}));
                 const msg = errorData.message || 'Request failed with status 429';
                 throw new RateLimitError(msg, retryAfterMs && retryAfterMs > 0 ? retryAfterMs : undefined);
             }
 
-            // Enhanced error message with validation details
-            let errorMessage = `Request failed with status ${response.status}`;
-            if (errorData.message) {
-                errorMessage = errorData.message;
-            }
-            if (errorData.details) {
-                errorMessage += ` - ${errorData.details}`;
-            }
-
-            console.error('❌ Full error details:', {
-                status: response.status,
-                statusText: response.statusText,
-                errorData,
-                url: `${this.baseUrl}${endpoint}`,
-                method: options.method || 'GET'
-            });
-
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage =
+                errorData.message || errorData.details || `Request failed with status ${response.status}`;
             throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        console.log('✅ Success response:', result);
-        return result;
+        return response.json();
     }
 
     // Accept AbortSignal so callers can cancel

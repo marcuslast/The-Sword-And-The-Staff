@@ -19,3 +19,33 @@
     background-size: cover;
     overflow: auto;
 }
+
+.training-center {
+    position: fixed;           /* full-screen layer */
+    inset: 0;                  /* top:0; right:0; bottom:0; left:0 */
+    width: 100vw;
+    height: 100vh;
+    overflow-y: auto;          /* scroll content if it overflows */
+
+    /* Background image (adjust the URL to where your image is served) */
+    background-image: url('../src/assets/images/backgrounds/horse-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed; /* keep the image fixed as content scrolls */
+}
+
+/* Dark overlay on top of the background */
+.training-center::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6); /* adjust opacity as desired */
+    pointer-events: none;           /* clicks go through to content */
+}
+
+/* Ensure all children sit above the overlay */
+.training-center > * {
+    position: relative;
+    z-index: 1;
+}

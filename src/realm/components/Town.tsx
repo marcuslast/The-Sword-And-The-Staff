@@ -642,7 +642,7 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         const army = townLogic.army as unknown as Record<string, Record<string, number>>;
         Object.values(army).forEach((troopLevels) => {
             Object.values(troopLevels).forEach((count) => {
-                total += Number(count) || 0; // Fix: Properly convert to number
+                total += Number(count) || 0;
             });
         });
         return total;
@@ -918,28 +918,7 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
 
                                     return (
                                         <div key={troopType} className="bg-white/10 rounded-lg p-4">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-12 h-12 relative">
-                                                    <img
-                                                        src={getTroopImageUrl(troopType)}
-                                                        alt={config?.name || troopType}
-                                                        className="w-12 h-12 rounded-lg object-cover"
-                                                        onError={(e) => {
-                                                            e.currentTarget.style.display = 'none';
-                                                            const nextSibling = e.currentTarget.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                                                            if (nextSibling) nextSibling.style.display = 'block';
-                                                        }}
-                                                    />
-                                                    <span className="fallback-icon text-3xl absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
-                                        {icon}
-                                    </span>
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-white font-bold capitalize">{config?.name || troopType}</h3>
-                                                    <p className="text-white/60 text-sm">Total: {totalCount}</p>
-                                                </div>
-                                            </div>
-
+                                            {/* ... rest of your army display code ... */}
                                             <div className="space-y-2">
                                                 {Object.entries(troopLevels as Record<string, number>).map(([level, count]) => {
                                                     const numCount = Number(count) || 0;

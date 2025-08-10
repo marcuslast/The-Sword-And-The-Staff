@@ -94,9 +94,11 @@ const processCompletedTraining = async (user: IUser): Promise<boolean> => {
     completedTraining.forEach(training => {
         const { troopType, level, quantity } = training;
 
-        // Add troops to army
-        const currentCount = (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).get(level) || 0;
-        (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).set(level, currentCount + quantity);
+        // Add troops to army - Convert level to string for Mongoose Map keys
+        const levelKey = level.toString(); // ← KEY FIX: Convert number to string
+        const armyMap = user.army[troopType as keyof typeof user.army] as unknown as Map<string, number>;
+        const currentCount = armyMap.get(levelKey) || 0;
+        armyMap.set(levelKey, currentCount + quantity);
 
         // Update stats
         user.gameStats.totalTroopsTrained += quantity;
@@ -495,8 +497,10 @@ router.post('/speedup-training', auth, async (req: Request, res: Response) => {
         const { troopType, level, quantity } = training;
 
         // Add troops to army
-        const currentCount = (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).get(level) || 0;
-        (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).set(level, currentCount + quantity);
+        const levelKey = level.toString(); // ← KEY FIX: Convert number to string
+        const armyMap = user.army[troopType as keyof typeof user.army] as unknown as Map<string, number>;
+        const currentCount = armyMap.get(levelKey) || 0;
+        armyMap.set(levelKey, currentCount + quantity);
 
         // Remove from training queue
         user.trainingQueue.splice(trainingIndex, 1);
