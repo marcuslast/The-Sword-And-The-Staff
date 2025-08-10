@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import Joi from 'joi';
 import Town, { ITown, BuildingPosition } from '../models/Town';
 import Building, { IBuilding } from '../models/Building';
-import User, { IUser, TrainingQueueItem } from '../models/User';
+import User, { IUser, TrainingQueueItem, UserResources } from '../models/User';
 import { auth } from '../middleware/auth';
 import { getTroopConfig, getTrainingCost, getTrainingTime, TROOP_CONFIGS } from '../config/troops';
 
@@ -377,10 +377,19 @@ router.post('/train', auth, async (req: Request, res: Response) => {
             totalCost[resource] = (amount as number) * quantity;
         });
 
+        const getResourceAmount = (user: IUser, resource: string): number => {
+            if (resource === 'gold') {
+                // Gold is stored in inventory.gold, not in resources
+                return Number(user.inventory.gold) || 0;
+            } else {
+                // Other resources are in the resources object
+                return Number(user.inventory.resources?.[resource as keyof UserResources]) || 0;
+            }
+        };
+
         // Check resources
         for (const [resource, totalAmount] of Object.entries(totalCost)) {
-            const resourceKey = resource as keyof typeof user.inventory.resources;
-            const have = (user.inventory.resources as any)[resourceKey] || 0;
+            const have = getResourceAmount(user, resource);
             if (have < totalAmount) {
                 return res.status(400).json({
                     message: `Insufficient ${resource}. Need ${totalAmount}, have ${have}`
@@ -390,8 +399,16 @@ router.post('/train', auth, async (req: Request, res: Response) => {
 
         // Deduct resources
         for (const [resource, totalAmount] of Object.entries(totalCost)) {
-            const resourceKey = resource as keyof typeof user.inventory.resources;
-            (user.inventory.resources as any)[resourceKey] -= totalAmount;
+            if (resource === 'gold') {
+                // Deduct from the main gold field
+                const currentGold = Number(user.inventory.gold) || 0;
+                user.inventory.gold = currentGold - totalAmount;
+            } else {
+                // Deduct from resources object
+                const resourceKey = resource as keyof typeof user.inventory.resources;
+                const currentAmount = Number(user.inventory.resources?.[resourceKey]) || 0;
+                (user.inventory.resources as any)[resourceKey] = currentAmount - totalAmount;
+            }
         }
 
         // Calculate training time

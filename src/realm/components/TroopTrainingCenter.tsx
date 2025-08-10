@@ -174,29 +174,73 @@ const TroopTrainingCenter: React.FC = () => {
         );
     };
 
+    const validateTrainingRequest = (building: { x: number; y: number }, troopType: string, qty: number): string | null => {
+        // Check coordinates
+        if (building.x < 0 || building.x > 19) {
+            return `Invalid X coordinate: ${building.x} (must be 0-19)`;
+        }
+        if (building.y < 0 || building.y > 15) {
+            return `Invalid Y coordinate: ${building.y} (must be 0-15)`;
+        }
+
+        // Check troop type
+        const validTroopTypes = ['swordsmen', 'archers', 'ballistas', 'berserkers', 'horsemen', 'lancers', 'spies'];
+        if (!validTroopTypes.includes(troopType)) {
+            return `Invalid troop type: ${troopType} (must be one of: ${validTroopTypes.join(', ')})`;
+        }
+
+        // Check quantity
+        if (qty < 1 || qty > 100) {
+            return `Invalid quantity: ${qty} (must be 1-100)`;
+        }
+
+        return null; // Valid
+    };
+
     const handleTrainTroops = async () => {
         if (!selectedBuilding || !selectedTroop || quantity < 1) {
             showNotification('Please select a building and configure training', 'error');
             return;
         }
 
-        const success = await townLogic.trainTroops(
-            selectedBuilding.x,
-            selectedBuilding.y,
-            selectedTroop.type,
-            quantity
-        );
+        // Validate the request before sending
+        const validationError = validateTrainingRequest(selectedBuilding, selectedTroop.type, quantity);
+        if (validationError) {
+            showNotification(validationError, 'error');
+            console.error('❌ Validation failed:', validationError);
+            return;
+        }
 
-        if (success) {
-            showNotification(`Training ${quantity} ${selectedTroop.name} started!`, 'success');
-            // Reset form
-            setSelectedTroop(null);
-            setSelectedBuilding(null);
-            setQuantity(1);
-            // Refresh inventory
-            await realmLogic.loadInventory(false);
-        } else if (townLogic.error) {
-            showNotification(townLogic.error, 'error');
+        // Ensure data types are correct
+        const requestData = {
+            x: Number(selectedBuilding.x),
+            y: Number(selectedBuilding.y),
+            troopType: String(selectedTroop.type),
+            quantity: Number(quantity)
+        };
+
+        console.log('🎯 Validated Training Request:', requestData);
+
+        try {
+            const success = await townLogic.trainTroops(
+                requestData.x,
+                requestData.y,
+                requestData.troopType,
+                requestData.quantity
+            );
+
+            if (success) {
+                showNotification(`Training ${quantity} ${selectedTroop.name} started!`, 'success');
+                setSelectedTroop(null);
+                setSelectedBuilding(null);
+                setQuantity(1);
+                realmLogic.loadInventory(false);
+            } else if (townLogic.error) {
+                showNotification(townLogic.error, 'error');
+            }
+        } catch (error) {
+            console.error('🎯 Training Error:', error);
+            showNotification('Training failed: ' + (error as Error).message, 'error');
         }
     };
 
