@@ -540,39 +540,47 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
 
     const canAffordBuilding = (buildingType: string): boolean => {
         const config = townLogic.getBuildingConfig(buildingType);
-        if (!config || !realmLogic.inventory?.resources) return false;
+        if (!config || !realmLogic.inventory) return false;
 
-        const cost = config.buildCost[0]?.resources || {};
-        const resources = realmLogic.inventory.resources;
+        const cost = (config.buildCost[0]?.resources || {}) as Record<string, number>;
+        const resources = (realmLogic.inventory.resources || {}) as Record<string, number>;
+        const gold = realmLogic.inventory.gold ?? 0;
 
         for (const [resource, amount] of Object.entries(cost)) {
-            const playerAmount = (resources as any)[resource] || 0;
+            const playerAmount = resource === 'gold'
+                ? gold
+                : resources[resource] ?? 0;
             if (playerAmount < amount) return false;
         }
         return true;
     };
 
+
     const canAffordTraining = (troopType: string, quantity: number): boolean => {
         const config = townLogic.getTroopConfig(troopType);
-        const building = selectedBuilding ? townLogic.town?.buildings.find(
-            b => b.x === selectedBuilding.x && b.y === selectedBuilding.y
-        ) : null;
+        const building = selectedBuilding
+            ? townLogic.town?.buildings.find(b => b.x === selectedBuilding.x && b.y === selectedBuilding.y)
+            : null;
 
-        if (!config || !building || !realmLogic.inventory?.resources) return false;
+        if (!config || !building || !realmLogic.inventory) return false;
 
         const buildingLevel = building.level || 1;
-        const cost = config.levels[buildingLevel - 1]?.trainingCost;
+        const cost = config.levels[buildingLevel - 1]?.trainingCost as Record<string, number> | undefined;
         if (!cost) return false;
 
-        const resources = realmLogic.inventory.resources;
+        const resources = (realmLogic.inventory.resources || {}) as Record<string, number>;
+        const gold = realmLogic.inventory.gold ?? 0;
 
         for (const [resource, amount] of Object.entries(cost)) {
             const totalCost = amount * quantity;
-            const playerAmount = (resources as any)[resource] || 0;
+            const playerAmount = resource === 'gold'
+                ? gold
+                : resources[resource] ?? 0;
             if (playerAmount < totalCost) return false;
         }
         return true;
     };
+
 
     const getTotalTroops = (): number => {
         if (!townLogic.army) return 0;
