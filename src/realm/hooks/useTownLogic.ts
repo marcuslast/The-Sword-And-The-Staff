@@ -13,6 +13,7 @@ const MIN_BETWEEN_MS = 5_000;       // Dedup: ignore calls within 5s unless forc
 const MAX_BACKOFF_MS = 5 * 60_000;  // cap at 5 minutes
 const JITTER_MS = 500;              // de-sync clients a bit
 const FIRST_FAIL_RETRY_MS = 3_000;  // retry quickly on the very first failure
+const INITIAL_LOAD_DELAY = 100;     // Small delay before first load to prevent flash
 
 type PendingResources = Record<string, number>;
 
@@ -21,8 +22,8 @@ export default function useTownLogic() {
     const [town, setTown] = useState<Town | null>(null);
     const [buildingConfigs, setBuildingConfigs] = useState<BuildingConfig[]>([]);
 
-    // UX state
-    const [loading, setLoading] = useState<boolean>(true); // start in loading
+    // UX state - Start with false to show content faster
+    const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
     // Action flags
@@ -39,6 +40,7 @@ export default function useTownLogic() {
     const pollTimeoutRef = useRef<number | null>(null);
     const pollingEnabledRef = useRef<boolean>(true);
     const hasLoadedOnceRef = useRef<boolean>(false);
+    const isMountedRef = useRef<boolean>(true);
 
     // Derived data
     const pendingResources: PendingResources = useMemo(() => {
@@ -58,9 +60,11 @@ export default function useTownLogic() {
 
     const scheduleNextPoll = (ms: number) => {
         clearPollTimeout();
+        if (!isMountedRef.current) return;
+
         const delay = Math.max(0, ms) + Math.floor(Math.random() * JITTER_MS);
         pollTimeoutRef.current = window.setTimeout(() => {
-            if (pollingEnabledRef.current) {
+            if (pollingEnabledRef.current && isMountedRef.current) {
                 loadTown().catch(() => {/* handled in loadTown */});
             }
         }, delay);
@@ -76,21 +80,17 @@ export default function useTownLogic() {
 
     const handleVisibility = () => {
         // Recompute and schedule based on current visibility state
+        if (!document.hidden && isMountedRef.current) {
+            // When tab becomes visible, do a fresh load
+            loadTown(true).catch(() => {/* handled in loadTown */});
+        }
         scheduleNextPoll(computeNextInterval());
     };
-
-    useEffect(() => {
-        document.addEventListener('visibilitychange', handleVisibility);
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibility);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // Core loader with dedupe + abort + backoff
     const loadTown = useCallback(async (force = false) => {
         // Deduplicate concurrent calls
-        if (inFlightRef.current) return inFlightRef.current;
+        if (inFlightRef.current && !force) return inFlightRef.current;
 
         const now = Date.now();
         if (!force && now - lastFetchAtRef.current < MIN_BETWEEN_MS) {
@@ -105,20 +105,26 @@ export default function useTownLogic() {
         abortRef.current = controller;
 
         const promise = (async () => {
-            // Keep loading true until we have at least one success
-            if (hasLoadedOnceRef.current) setLoading(true);
+            // Only show loading on first load or if we don't have data
+            if (!hasLoadedOnceRef.current || !town) {
+                setLoading(true);
+            }
             setError(null);
 
             try {
                 const resp: TownResponse = await townAPI.getTown(controller.signal);
+
+                if (!isMountedRef.current) return;
+
                 setTown(resp.town);
                 setBuildingConfigs(resp.buildingConfigs);
                 lastFetchAtRef.current = Date.now();
                 hasLoadedOnceRef.current = true;
                 // Reset backoff on success
                 backoffRef.current = 0;
+                setLoading(false);
             } catch (e: any) {
-                if (e?.name === 'AbortError') {
+                if (e?.name === 'AbortError' || !isMountedRef.current) {
                     // do nothing; a newer request superseded this one
                     return;
                 }
@@ -134,28 +140,46 @@ export default function useTownLogic() {
                         ? Math.min(MAX_BACKOFF_MS, (backoffRef.current || BASE_POLL_MS) * 1.5)
                         : FIRST_FAIL_RETRY_MS;
                 }
+                // Only keep loading spinner on first load
+                if (!hasLoadedOnceRef.current) {
+                    setLoading(true);
+                } else {
+                    setLoading(false);
+                }
             } finally {
                 inFlightRef.current = null;
-                // If we've never loaded successfully, keep showing spinner instead of failure
-                setLoading(!hasLoadedOnceRef.current ? true : false);
-                // Schedule the next poll
-                scheduleNextPoll(computeNextInterval());
+                // Schedule the next poll if mounted
+                if (isMountedRef.current) {
+                    scheduleNextPoll(computeNextInterval());
+                }
             }
         })();
 
         inFlightRef.current = promise;
         return promise;
-    }, []);
+    }, [town]);
 
-    // Start polling on mount; stop on unmount
+    // Start polling on mount with a small delay; stop on unmount
     useEffect(() => {
+        isMountedRef.current = true;
         pollingEnabledRef.current = true;
-        loadTown(true);
-        scheduleNextPoll(computeNextInterval());
+
+        // Add a small delay before initial load to prevent loading flash
+        const initialTimer = setTimeout(() => {
+            if (isMountedRef.current) {
+                loadTown(true);
+            }
+        }, INITIAL_LOAD_DELAY);
+
+        document.addEventListener('visibilitychange', handleVisibility);
+
         return () => {
+            isMountedRef.current = false;
             pollingEnabledRef.current = false;
+            clearTimeout(initialTimer);
             abortRef.current?.abort();
             clearPollTimeout();
+            document.removeEventListener('visibilitychange', handleVisibility);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -165,12 +189,18 @@ export default function useTownLogic() {
         pollingEnabledRef.current = false;
         clearPollTimeout();
     }, []);
+
     const resumePolling = useCallback(() => {
         if (!pollingEnabledRef.current) {
             pollingEnabledRef.current = true;
             scheduleNextPoll(0);
         }
     }, []);
+
+    // Force refresh method
+    const refresh = useCallback(async () => {
+        await loadTown(true);
+    }, [loadTown]);
 
     // Utility: get config by type
     const getBuildingConfig = useCallback(
@@ -282,6 +312,7 @@ export default function useTownLogic() {
         speedUpBuilding,
         getBuildingConfig,
         calculateSpeedupCost,
+        refresh,
 
         // polling controls (optional use)
         pausePolling,

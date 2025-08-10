@@ -1,0 +1,10 @@
+@media (max-width: 640px) {
+    :root {
+        --hex-w: 8vw;
+    }
+}
+@media (min-width: 641px) {
+    :root {
+        --hex-w: min(12vw, 96px);
+    }
+}

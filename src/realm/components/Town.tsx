@@ -108,47 +108,67 @@ const BUILDING_VISUALS: Record<string, {
 };
 
 // Timer component
-const BuildingTimer: React.FC<BuildingTimerProps> = ({ endTime, onComplete }) => {
-    const [timeLeft, setTimeLeft] = useState(0);
+const BuildingTimer: React.FC<{ startTime?: string; endTime: string; label: string; onComplete?: () => void }> = ({ startTime, endTime, label, onComplete }) => {
+    const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            const now = Date.now();
-            const end = new Date(endTime).getTime();
-            const diff = Math.max(0, end - now);
-            setTimeLeft(diff);
-
-            if (diff === 0) {
-                clearInterval(interval);
-                onComplete?.();
-            }
-        }, 1000);
-
+        const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
-    }, [endTime, onComplete]);
+    }, []);
 
-    const formatTime = (ms: number): string => {
-        const seconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
+    const endMs = new Date(endTime).getTime();
+    const startMs = startTime ? new Date(startTime).getTime() : undefined;
+    const totalMs = startMs ? Math.max(0, endMs - startMs) : undefined;
+    const remainingMs = Math.max(0, endMs - now);
+    const done = remainingMs <= 0;
 
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        } else {
-            return `${seconds}s`;
+    useEffect(() => {
+        if (done) {
+            onComplete?.();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [done]);
+
+    const format = (ms: number): string => {
+        const totalSec = Math.ceil(ms / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
     };
 
-    if (timeLeft === 0) return null;
+    const progress = totalMs ? Math.min(1, Math.max(0, 1 - remainingMs / totalMs)) : 0;
+
+    if (done) return null;
 
     return (
-        <div className="absolute -top-2 -right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full z-10">
-            ⏱️ {formatTime(timeLeft)}
+        <div
+            className="absolute inset-0 pointer-events-none flex items-center justify-center"
+            style={{ clipPath: HEX_CLIP }}
+        >
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-[1px]" />
+            <div className="relative z-10 flex flex-col items-center justify-center text-white px-2">
+                <div className="text-xs font-semibold uppercase tracking-wide bg-white/15 px-2 py-0.5 rounded-full mb-1">
+                    {label}
+                </div>
+                <div className="relative z-10 flex flex-col items-center justify-center text-white px-1 scale-[0.85] sm:scale-100">
+                    {format(remainingMs)}
+                </div>
+                {typeof totalMs === 'number' && totalMs > 0 && (
+                    <div className="mt-2 w-3/4 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-yellow-400/90"
+                            style={{ width: `${Math.round(progress * 100)}%` }}
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
+
 
 // Near your hex constants
 const HEX_RATIO = 0.866025403784; // width / height for point-top hex (≈ √3 / 2)
@@ -156,7 +176,7 @@ const HEX_RATIO = 0.866025403784; // width / height for point-top hex (≈ √3 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25.2%, 100% 74.8%, 50% 100%, 0% 74.8%, 0% 25.2%)';
 
 // Building cell as a hex
-const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected, onClick, config }) => {
+const BuildingCell: React.FC<BuildingCellProps & { onTimerComplete?: () => void }> = ({ building, x, y, isSelected, onClick, config, onTimerComplete }) => {
     const isEmpty = building.type === 'empty';
     const isConstructing = building.isBuilding;
     const isUpgrading = building.isUpgrading;
@@ -166,26 +186,25 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
         shadowColor: 'shadow-gray-900/50'
     };
 
-    const handleTimerComplete = () => {
-        window.location.reload();
-    };
+    const endTime = isConstructing ? building.buildEndTime : isUpgrading ? building.upgradeEndTime : undefined;
+    const startTime = isConstructing ? building.buildStartTime : isUpgrading ? building.upgradeStartTime : undefined;
+    const statusLabel = isConstructing ? 'Building' : isUpgrading ? 'Upgrading' : '';
 
     return (
         <button
             onClick={() => onClick(x, y)}
             className={`
-        relative w-full h-full transition-opacity duration-200
-        ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 hover:opacity-90' : `bg-gradient-to-br ${visual.color} ${visual.shadowColor}`}
-        ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
-        text-white overflow-hidden
-    `}
+                relative w-full h-full transition-opacity duration-200
+                ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 hover:opacity-90' : `bg-gradient-to-br ${visual.color} ${visual.shadowColor}`}
+                ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
+                text-white overflow-hidden
+            `}
             style={{
                 clipPath: HEX_CLIP,
-                transform: 'translateZ(0)' // reduce sub-pixel jitter
+                transform: 'translateZ(0)'
             }}
         >
-
-        {/* Content */}
+            {/* Content */}
             <div className="absolute inset-0">
                 {/* Fallback icon */}
                 {!isEmpty && (
@@ -210,15 +229,17 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
                     </div>
                 )}
 
-                {/* Timer display */}
-                {isConstructing && building.buildEndTime && (
-                    <BuildingTimer endTime={building.buildEndTime} onComplete={handleTimerComplete} />
-                )}
-                {isUpgrading && building.upgradeEndTime && (
-                    <BuildingTimer endTime={building.upgradeEndTime} onComplete={handleTimerComplete} />
+                {/* Construction/Upgrade gray overlay with countdown */}
+                {(isConstructing || isUpgrading) && endTime && (
+                    <BuildingTimer
+                        startTime={startTime}
+                        endTime={endTime}
+                        label={statusLabel}
+                        onComplete={onTimerComplete}
+                    />
                 )}
 
-                {/* Production indicator */}
+                {/* Production indicator (hidden while busy) */}
                 {config?.production && building.level > 0 && !isConstructing && !isUpgrading && (
                     <div className="absolute top-1 right-1">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
@@ -238,7 +259,7 @@ const BuildingCell: React.FC<BuildingCellProps> = ({ building, x, y, isSelected,
             </div>
         </button>
     );
-};
+}
 
 // Helpers to build a rounded hex-shaped mask using axial coords (odd-q, point-top)
 function offsetToAxialOddQ(x: number, y: number) {
@@ -267,6 +288,7 @@ function offsetToAxialOddR(x: number, y: number) {
 
 export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
     const { user } = useAuth();
+    const [hexW, setHexW] = useState(0);
     const townLogic = useTownLogic();
     const realmLogic = useRealmLogic();
     const [selectedBuilding, setSelectedBuilding] = useState<{ x: number; y: number } | null>(null);
@@ -285,7 +307,37 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         loadData();
     }, []);
 
+    useEffect(() => {
+        if (!townLogic.town) return;
 
+        function updateHexSize() {
+            const horizontalMargin = 16; // px margin on each side
+            const verticalMargin = 220; // space for header/resources bar
+
+            const vw = window.innerWidth - horizontalMargin * 2;
+            const vh = window.innerHeight - verticalMargin;
+
+            // Mask radius logic
+            const mapWidth = townLogic.town.mapSize.width;
+            const mapHeight = townLogic.town.mapSize.height;
+            const radius = Math.floor(Math.min(mapWidth, mapHeight) / 2);
+
+            // Effective playable area in hex counts
+            const activeWidthHexes = radius * 2 + 1 + 0.5;
+            const activeHeightHexes = 0.75 * (radius * 2) + 1;
+
+            const maxHexWFromWidth = vw / activeWidthHexes;
+            const maxHexWFromHeight = (vh / activeHeightHexes) * HEX_RATIO;
+
+            const finalHexW = Math.min(maxHexWFromWidth, maxHexWFromHeight);
+
+            setHexW(finalHexW);
+        }
+
+        updateHexSize();
+        window.addEventListener("resize", updateHexSize);
+        return () => window.removeEventListener("resize", updateHexSize);
+    }, [townLogic.town]);
 
     const showNotification = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
         setNotification({ message, type });
@@ -301,8 +353,14 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
             setSelectedBuilding({ x, y });
             setShowBuildMenu(true);
         } else {
+            // Always select the building and close build menu for non-empty tiles
             setSelectedBuilding({ x, y });
             setShowBuildMenu(false);
+
+            // Force a refresh to get latest building data if it's under construction
+            if (building.isBuilding || building.isUpgrading) {
+                townLogic.refresh();
+            }
         }
     };
 
@@ -518,15 +576,15 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
             <div className="max-w-7xl mx-auto px-4 py-6">
                 {/* Honeycomb Map */}
                 <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-4 mb-6">
+                    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] overflow-x-auto">
                     <div
                         className="relative mx-auto"
                         style={{
-                            ['--hex-w' as any]: 'min(12vw, 96px)',                        // hex width
-                            ['--hex-h' as any]: `calc(var(--hex-w) / 0.866025403784)`,     // hex height = W / (√3/2)
-                            // Total width: cols * W + extra 0.5W for the odd row shift
+                            ['--hex-w' as any]: `${hexW}px`,
+                            ['--hex-h' as any]: `${hexW / HEX_RATIO}px`,
+                            // Width/height now come from actual map size, but scaling already ensures it fits
                             width: `calc((${townLogic.town.mapSize.width} + 0.5) * var(--hex-w))`,
-                            // Total height: (0.75*(rows-1) + 1) * H
-                            height: `calc((0.75 * (${townLogic.town.mapSize.height} - 1) + 1) * var(--hex-h))`
+                            height: `calc((0.75 * (${townLogic.town.mapSize.height} - 1) + 1) * var(--hex-h))`,
                         }}
                     >
                         {grid.map((row, y) =>
@@ -564,11 +622,17 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                             isSelected={selectedBuilding?.x === x && selectedBuilding?.y === y}
                                             onClick={handleCellClick}
                                             config={config}
+                                            onTimerComplete={() => {
+                                                // Lightweight refresh instead of full page reload
+                                                townLogic.refresh();
+                                            }}
                                         />
+
                                     </div>
                                 );
                             })
                         )}
+                    </div>
                     </div>
                 </div>
 
