@@ -55,9 +55,52 @@ export interface Town {
     lastCollected: string;
 }
 
+export interface TroopConfig {
+    type: string;
+    name: string;
+    description: string;
+    buildingRequired: string;
+    imageUrl: string;
+    levels: Array<{
+        level: number;
+        stats: {
+            attack: number;
+            defense: number;
+            health: number;
+            speed: number;
+            carryCapacity: number;
+        };
+        trainingCost: Record<string, number>;
+        trainingTime: number;
+        populationCost: number;
+    }>;
+}
+
+export interface TrainingQueueItem {
+    _id?: string;
+    troopType: string;
+    level: number;
+    quantity: number;
+    startTime: string;
+    endTime: string;
+    buildingX: number;
+    buildingY: number;
+}
+
 export interface TownResponse {
     town: Town;
     buildingConfigs: BuildingConfig[];
+    troopConfigs?: TroopConfig[];
+    army?: {
+        archers: Record<number, number>;
+        ballistas: Record<number, number>;
+        berserkers: Record<number, number>;
+        horsemen: Record<number, number>;
+        lancers: Record<number, number>;
+        spies: Record<number, number>;
+        swordsmen: Record<number, number>;
+    };
+    trainingQueue?: TrainingQueueItem[];
 }
 
 export interface CollectResourcesResponse {
@@ -98,6 +141,38 @@ export interface SpeedUpBuildingResponse {
     message: string;
     building: BuildingPosition;
     newResources: Record<string, number>;
+}
+
+export interface TrainTroopsRequest {
+    x: number;
+    y: number;
+    troopType: string;
+    quantity: number;
+}
+
+export interface TrainTroopsResponse {
+    message: string;
+    training: TrainingQueueItem;
+    newResources: Record<string, number>;
+    trainingQueue: TrainingQueueItem[];
+}
+
+export interface SpeedUpTrainingRequest {
+    trainingId: string;
+}
+
+export interface SpeedUpTrainingResponse {
+    message: string;
+    army: Record<string, Record<string, number>>;
+    newResources: Record<string, number>;
+    trainingQueue: TrainingQueueItem[];
+}
+
+export interface CancelTrainingResponse {
+    message: string;
+    refund: Record<string, number>;
+    newResources: Record<string, number>;
+    trainingQueue: TrainingQueueItem[];
 }
 
 // Rate limit error with optional retry-after
@@ -189,6 +264,30 @@ class TownAPI {
         return this.request<SpeedUpBuildingResponse>('/speedup', {
             method: 'POST',
             body: JSON.stringify(data),
+            signal,
+        });
+    }
+
+    // New training methods
+    async trainTroops(data: TrainTroopsRequest, signal?: AbortSignal): Promise<TrainTroopsResponse> {
+        return this.request<TrainTroopsResponse>('/train', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            signal,
+        });
+    }
+
+    async speedUpTraining(data: SpeedUpTrainingRequest, signal?: AbortSignal): Promise<SpeedUpTrainingResponse> {
+        return this.request<SpeedUpTrainingResponse>('/speedup-training', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            signal,
+        });
+    }
+
+    async cancelTraining(trainingId: string, signal?: AbortSignal): Promise<CancelTrainingResponse> {
+        return this.request<CancelTrainingResponse>(`/training/${trainingId}`, {
+            method: 'DELETE',
             signal,
         });
     }

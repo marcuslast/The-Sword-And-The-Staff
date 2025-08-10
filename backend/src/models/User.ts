@@ -18,6 +18,7 @@ export interface TroopStats {
 }
 
 export interface TrainingQueueItem {
+    _id?: mongoose.Types.ObjectId; // Add _id for subdocuments
     troopType: string;
     level: number;
     quantity: number;

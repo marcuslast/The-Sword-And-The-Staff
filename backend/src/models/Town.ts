@@ -38,9 +38,21 @@ const BuildingPositionSchema = new Schema({
         type: String,
         required: true,
         enum: [
-            'empty', 'house', 'farm', 'mine', 'lumbermill', 'quarry', 'townhall',
+            // Basic
+            'empty',
+
+            // Special buildings
+            'townhall', 'market', 'warehouse',
+
+            // Resource buildings
+            'house', 'mansion', 'farm', 'mine', 'lumbermill', 'quarry', 'gem_mine',
+
+            // Military buildings
             'barracks', 'archery_range', 'siege_workshop', 'warrior_lodge',
-            'stable', 'training_grounds', 'spy_den', 'wall', 'tower'
+            'stable', 'training_grounds', 'spy_den',
+
+            // Defensive buildings
+            'wall', 'tower'
         ]
     },
     level: { type: Number, default: 1, min: 0, max: 30 },

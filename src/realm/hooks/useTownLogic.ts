@@ -17,10 +17,57 @@ const INITIAL_LOAD_DELAY = 100;     // Small delay before first load to prevent 
 
 type PendingResources = Record<string, number>;
 
+// Training types - match backend definitions
+interface TrainingQueueItem {
+    _id?: string;
+    troopType: string;
+    level: number;
+    quantity: number;
+    startTime: string;
+    endTime: string;
+    buildingX: number;
+    buildingY: number;
+}
+
+interface TroopConfig {
+    type: string;
+    name: string;
+    description: string;
+    buildingRequired: string;
+    imageUrl: string;
+    levels: Array<{
+        level: number;
+        stats: {
+            attack: number;
+            defense: number;
+            health: number;
+            speed: number;
+            carryCapacity: number;
+        };
+        trainingCost: Record<string, number>;
+        trainingTime: number;
+        populationCost: number;
+    }>;
+}
+
+// Army type matching backend
+interface Army {
+    archers: Record<number, number>;
+    ballistas: Record<number, number>;
+    berserkers: Record<number, number>;
+    horsemen: Record<number, number>;
+    lancers: Record<number, number>;
+    spies: Record<number, number>;
+    swordsmen: Record<number, number>;
+}
+
 export default function useTownLogic() {
     // Data
     const [town, setTown] = useState<Town | null>(null);
     const [buildingConfigs, setBuildingConfigs] = useState<BuildingConfig[]>([]);
+    const [troopConfigs, setTroopConfigs] = useState<TroopConfig[]>([]);
+    const [army, setArmy] = useState<Army | null>(null);
+    const [activeTraining, setActiveTraining] = useState<TrainingQueueItem[]>([]);
 
     // UX state - Start with false to show content faster
     const [loading, setLoading] = useState<boolean>(false);
@@ -31,6 +78,9 @@ export default function useTownLogic() {
     const [building, setBuilding] = useState<boolean>(false);
     const [upgrading, setUpgrading] = useState<boolean>(false);
     const [speedingUp, setSpeedingUp] = useState<boolean>(false);
+    const [training, setTraining] = useState<boolean>(false);
+    const [speedingUpTraining, setSpeedingUpTraining] = useState<boolean>(false);
+    const [cancellingTraining, setCancellingTraining] = useState<boolean>(false);
 
     // Polling control
     const inFlightRef = useRef<Promise<void> | null>(null);
@@ -112,12 +162,25 @@ export default function useTownLogic() {
             setError(null);
 
             try {
-                const resp: TownResponse = await townAPI.getTown(controller.signal);
+                const resp = await townAPI.getTown(controller.signal);
 
                 if (!isMountedRef.current) return;
 
                 setTown(resp.town);
                 setBuildingConfigs(resp.buildingConfigs);
+
+                if (resp.troopConfigs) {
+                    setTroopConfigs(resp.troopConfigs);
+                }
+
+                if (resp.army) {
+                    setArmy(resp.army);
+                }
+
+                if (resp.trainingQueue) {
+                    setActiveTraining(resp.trainingQueue);
+                }
+
                 lastFetchAtRef.current = Date.now();
                 hasLoadedOnceRef.current = true;
                 // Reset backoff on success
@@ -208,6 +271,12 @@ export default function useTownLogic() {
         [buildingConfigs]
     );
 
+    // Utility: get troop config by type
+    const getTroopConfig = useCallback(
+        (type: string) => troopConfigs.find(cfg => cfg.type === type),
+        [troopConfigs]
+    );
+
     // Utility: compute speedup cost (simple example; adjust as needed)
     const calculateSpeedupCost = useCallback((endTimeISO: string) => {
         const end = new Date(endTimeISO).getTime();
@@ -287,10 +356,65 @@ export default function useTownLogic() {
         }
     }, [loadTown, pausePolling, resumePolling]);
 
+    // New training methods
+    const trainTroops = useCallback(async (x: number, y: number, troopType: string, quantity: number) => {
+        setTraining(true);
+        setError(null);
+        pausePolling();
+        try {
+            await townAPI.trainTroops({ x, y, troopType, quantity });
+            await loadTown(true);
+            return true;
+        } catch (e: any) {
+            if (e?.name !== 'AbortError') setError(e?.message || 'Failed to start training');
+            return false;
+        } finally {
+            setTraining(false);
+            resumePolling();
+        }
+    }, [loadTown, pausePolling, resumePolling]);
+
+    const speedUpTraining = useCallback(async (trainingId: string) => {
+        setSpeedingUpTraining(true);
+        setError(null);
+        pausePolling();
+        try {
+            await townAPI.speedUpTraining({ trainingId });
+            await loadTown(true);
+            return true;
+        } catch (e: any) {
+            if (e?.name !== 'AbortError') setError(e?.message || 'Failed to speed up training');
+            return false;
+        } finally {
+            setSpeedingUpTraining(false);
+            resumePolling();
+        }
+    }, [loadTown, pausePolling, resumePolling]);
+
+    const cancelTraining = useCallback(async (trainingId: string) => {
+        setCancellingTraining(true);
+        setError(null);
+        pausePolling();
+        try {
+            await townAPI.cancelTraining(trainingId);
+            await loadTown(true);
+            return true;
+        } catch (e: any) {
+            if (e?.name !== 'AbortError') setError(e?.message || 'Failed to cancel training');
+            return false;
+        } finally {
+            setCancellingTraining(false);
+            resumePolling();
+        }
+    }, [loadTown, pausePolling, resumePolling]);
+
     return {
         // data
         town,
         buildingConfigs,
+        troopConfigs,
+        army,
+        activeTraining,
 
         // derived
         pendingResources,
@@ -303,6 +427,9 @@ export default function useTownLogic() {
         building,
         upgrading,
         speedingUp,
+        training,
+        speedingUpTraining,
+        cancellingTraining,
 
         // operations
         loadTown,
@@ -310,7 +437,11 @@ export default function useTownLogic() {
         buildBuilding,
         upgradeBuilding,
         speedUpBuilding,
+        trainTroops,
+        speedUpTraining,
+        cancelTraining,
         getBuildingConfig,
+        getTroopConfig,
         calculateSpeedupCost,
         refresh,
 

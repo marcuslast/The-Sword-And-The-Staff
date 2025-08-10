@@ -43,6 +43,7 @@ const buildingConfigs = [
         imageUrl: '/assets/buildings/townhall.png',
         isActive: true
     },
+
     // Resource Buildings
     {
         type: 'farm',
@@ -96,11 +97,98 @@ const buildingConfigs = [
         imageUrl: '/assets/buildings/lumbermill.png',
         isActive: true
     },
+    {
+        type: 'quarry',
+        name: 'Stone Quarry',
+        description: 'Produces stone for construction',
+        category: 'resource',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(120, i + 1),
+                iron: calculateCost(50, i + 1)
+            },
+            time: calculateCost(180, i + 1)
+        })),
+        production: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: { stone: calculateProduction(10, i + 1) },
+            time: 3600
+        })),
+        unlockRequirements: {
+            townLevel: 3,
+            buildings: [
+                { type: 'townhall', level: 3 }
+            ]
+        },
+        imageUrl: '/assets/buildings/quarry.png',
+        isActive: true
+    },
+    {
+        type: 'mine',
+        name: 'Iron Mine',
+        description: 'Produces iron for weapons and tools',
+        category: 'resource',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(150, i + 1),
+                stone: calculateCost(200, i + 1)
+            },
+            time: calculateCost(240, i + 1)
+        })),
+        production: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: { iron: calculateProduction(8, i + 1) },
+            time: 3600
+        })),
+        unlockRequirements: {
+            townLevel: 4,
+            buildings: [
+                { type: 'townhall', level: 4 }
+            ]
+        },
+        imageUrl: '/assets/buildings/mine.png',
+        isActive: true
+    },
+    {
+        type: 'gem_mine',
+        name: 'Gem Mine',
+        description: 'Produces precious gems for premium upgrades',
+        category: 'resource',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(300, i + 1),
+                stone: calculateCost(400, i + 1),
+                iron: calculateCost(200, i + 1),
+                gold: calculateCost(100, i + 1)
+            },
+            time: calculateCost(600, i + 1)
+        })),
+        production: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: { gems: calculateProduction(2, i + 1) },
+            time: 7200 // 2 hours
+        })),
+        unlockRequirements: {
+            townLevel: 8,
+            buildings: [
+                { type: 'townhall', level: 8 }
+            ]
+        },
+        imageUrl: '/assets/buildings/gem_mine.png',
+        isActive: true
+    },
+
     // Military Buildings
     {
         type: 'barracks',
         name: 'Barracks',
-        description: 'Trains military units for defense and attacks',
+        description: 'Trains swordsmen for infantry combat',
         category: 'military',
         maxLevel: 30,
         buildCost: Array.from({ length: 30 }, (_, i) => ({
@@ -113,14 +201,164 @@ const buildingConfigs = [
             time: calculateCost(300, i + 1)
         })),
         unlockRequirements: {
-            townLevel: 5,
+            townLevel: 3,
             buildings: [
-                { type: 'townhall', level: 5 }
+                { type: 'townhall', level: 3 }
             ]
         },
         imageUrl: '/assets/buildings/barracks.png',
         isActive: true
     },
+    {
+        type: 'archery_range',
+        name: 'Archery Range',
+        description: 'Trains archers for ranged combat',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(180, i + 1),
+                stone: calculateCost(120, i + 1),
+                iron: calculateCost(40, i + 1)
+            },
+            time: calculateCost(250, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 4,
+            buildings: [
+                { type: 'barracks', level: 2 }
+            ]
+        },
+        imageUrl: '/assets/buildings/archery_range.png',
+        isActive: true
+    },
+    {
+        type: 'siege_workshop',
+        name: 'Siege Workshop',
+        description: 'Builds powerful ballistas for siege warfare',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(400, i + 1),
+                stone: calculateCost(300, i + 1),
+                iron: calculateCost(150, i + 1),
+                gold: calculateCost(50, i + 1)
+            },
+            time: calculateCost(600, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 7,
+            buildings: [
+                { type: 'barracks', level: 5 }
+            ]
+        },
+        imageUrl: '/assets/buildings/siege_workshop.png',
+        isActive: true
+    },
+    {
+        type: 'warrior_lodge',
+        name: 'Warrior Lodge',
+        description: 'Trains fierce berserkers for devastating attacks',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(250, i + 1),
+                stone: calculateCost(200, i + 1),
+                iron: calculateCost(100, i + 1),
+                gold: calculateCost(30, i + 1)
+            },
+            time: calculateCost(400, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 6,
+            buildings: [
+                { type: 'barracks', level: 3 }
+            ]
+        },
+        imageUrl: '/assets/buildings/warrior_lodge.png',
+        isActive: true
+    },
+    {
+        type: 'stable',
+        name: 'Stable',
+        description: 'Trains horsemen for fast cavalry strikes',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(300, i + 1),
+                stone: calculateCost(150, i + 1),
+                iron: calculateCost(80, i + 1),
+                food: calculateCost(100, i + 1)
+            },
+            time: calculateCost(450, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 5,
+            buildings: [
+                { type: 'farm', level: 3 }
+            ]
+        },
+        imageUrl: '/assets/buildings/stable.png',
+        isActive: true
+    },
+    {
+        type: 'training_grounds',
+        name: 'Training Grounds',
+        description: 'Trains elite lancers for heavy cavalry combat',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(350, i + 1),
+                stone: calculateCost(300, i + 1),
+                iron: calculateCost(120, i + 1),
+                gold: calculateCost(80, i + 1)
+            },
+            time: calculateCost(500, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 8,
+            buildings: [
+                { type: 'stable', level: 3 }
+            ]
+        },
+        imageUrl: '/assets/buildings/training_grounds.png',
+        isActive: true
+    },
+    {
+        type: 'spy_den',
+        name: 'Spy Den',
+        description: 'Trains spies for reconnaissance and sabotage',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(150, i + 1),
+                stone: calculateCost(100, i + 1),
+                iron: calculateCost(50, i + 1),
+                gold: calculateCost(100, i + 1)
+            },
+            time: calculateCost(350, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 6,
+            buildings: [
+                { type: 'townhall', level: 6 }
+            ]
+        },
+        imageUrl: '/assets/buildings/spy_den.png',
+        isActive: true
+    },
+
     // Residential Buildings
     {
         type: 'house',
@@ -140,6 +378,130 @@ const buildingConfigs = [
             townLevel: 1
         },
         imageUrl: '/assets/buildings/house.png',
+        isActive: true
+    },
+    {
+        type: 'mansion',
+        name: 'Mansion',
+        description: 'Luxurious housing for wealthy citizens',
+        category: 'residential',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(300, i + 1),
+                stone: calculateCost(250, i + 1),
+                iron: calculateCost(100, i + 1),
+                gold: calculateCost(150, i + 1)
+            },
+            time: calculateCost(600, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 10,
+            buildings: [
+                { type: 'house', level: 5 }
+            ]
+        },
+        imageUrl: '/assets/buildings/mansion.png',
+        isActive: true
+    },
+
+    // Defensive Buildings
+    {
+        type: 'wall',
+        name: 'Wall',
+        description: 'Defensive walls to protect your town',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                stone: calculateCost(200, i + 1),
+                iron: calculateCost(100, i + 1)
+            },
+            time: calculateCost(300, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 5,
+            buildings: [
+                { type: 'barracks', level: 1 }
+            ]
+        },
+        imageUrl: '/assets/buildings/wall.png',
+        isActive: true
+    },
+    {
+        type: 'tower',
+        name: 'Defense Tower',
+        description: 'Towers for enhanced defensive capabilities',
+        category: 'military',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(150, i + 1),
+                stone: calculateCost(300, i + 1),
+                iron: calculateCost(150, i + 1)
+            },
+            time: calculateCost(400, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 6,
+            buildings: [
+                { type: 'wall', level: 3 }
+            ]
+        },
+        imageUrl: '/assets/buildings/tower.png',
+        isActive: true
+    },
+
+    // Economic Buildings
+    {
+        type: 'market',
+        name: 'Market',
+        description: 'Trade goods and resources with other players',
+        category: 'special',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(250, i + 1),
+                stone: calculateCost(200, i + 1),
+                gold: calculateCost(100, i + 1)
+            },
+            time: calculateCost(400, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 7,
+            buildings: [
+                { type: 'townhall', level: 7 }
+            ]
+        },
+        imageUrl: '/assets/buildings/market.png',
+        isActive: true
+    },
+    {
+        type: 'warehouse',
+        name: 'Warehouse',
+        description: 'Stores large quantities of resources safely',
+        category: 'special',
+        maxLevel: 30,
+        buildCost: Array.from({ length: 30 }, (_, i) => ({
+            level: i + 1,
+            resources: {
+                wood: calculateCost(200, i + 1),
+                stone: calculateCost(150, i + 1),
+                iron: calculateCost(100, i + 1)
+            },
+            time: calculateCost(300, i + 1)
+        })),
+        unlockRequirements: {
+            townLevel: 4,
+            buildings: [
+                { type: 'townhall', level: 4 }
+            ]
+        },
+        imageUrl: '/assets/buildings/warehouse.png',
         isActive: true
     }
 ];
@@ -170,28 +532,30 @@ const sampleOrbs = [
     }
 ];
 
-// Sample town layout
+// Sample town layout with more buildings
 const sampleTown = {
     userId: new mongoose.Types.ObjectId(),
     name: 'Starter Town',
     level: 1,
-    mapSize: { width: 10, height: 10 },
+    mapSize: { width: 10, height: 8 },
     buildings: [
-        { x: 5, y: 5, type: 'townhall', level: 1 },
-        { x: 3, y: 4, type: 'farm', level: 1 },
-        { x: 7, y: 4, type: 'house', level: 1 }
+        { x: 4, y: 3, type: 'townhall', level: 1 },
+        { x: 3, y: 3, type: 'house', level: 1 },
+        { x: 5, y: 3, type: 'farm', level: 1 },
+        { x: 2, y: 4, type: 'lumbermill', level: 1 },
+        { x: 6, y: 4, type: 'barracks', level: 1 }
     ],
-    layout: JSON.stringify(Array(10).fill(Array(10).fill('grass')))
+    layout: JSON.stringify(Array(8).fill(Array(10).fill('grass')))
 };
 
-// Sample test user
+// Sample test user with more resources
 const testUser = {
     username: 'testplayer',
     email: 'test@example.com',
     password: 'test1234',
     displayName: 'Test Player',
     inventory: {
-        gold: 500,
+        gold: 1000,
         orbsCount: {
             common: 3,
             uncommon: 1,
@@ -200,13 +564,23 @@ const testUser = {
             legendary: 0
         },
         resources: {
-            food: 100,
-            wood: 200,
-            stone: 150,
-            iron: 50,
-            gems: 0
+            food: 200,
+            wood: 300,
+            stone: 250,
+            iron: 150,
+            gems: 10
         }
-    }
+    },
+    army: {
+        swordsmen: { 1: 5, 2: 2 },
+        archers: { 1: 3 },
+        ballistas: {},
+        berserkers: {},
+        horsemen: {},
+        lancers: {},
+        spies: {}
+    },
+    trainingQueue: []
 };
 
 async function seedDatabase() {
@@ -228,6 +602,12 @@ async function seedDatabase() {
         const buildings = await Building.insertMany(buildingConfigs);
         console.log(`🏗️  Seeded ${buildings.length} building configurations`);
 
+        // List all building types for reference
+        console.log('📋 Available building types:');
+        buildingConfigs.forEach(building => {
+            console.log(`   - ${building.type}: ${building.name} (${building.category})`);
+        });
+
         // Seed Test User (with hashed password)
         const user = new User(testUser);
         await user.save();
@@ -247,6 +627,10 @@ async function seedDatabase() {
         console.log('\nTest user credentials:');
         console.log(`Username: ${testUser.username}`);
         console.log(`Password: ${testUser.password}`);
+        console.log('\nThe test user has:');
+        console.log(`- ${testUser.inventory.gold} gold`);
+        console.log(`- Starting resources and some trained troops`);
+        console.log(`- A town with basic buildings including a barracks`);
 
         process.exit(0);
     } catch (error) {
