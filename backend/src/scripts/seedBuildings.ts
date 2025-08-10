@@ -481,8 +481,8 @@ const buildingConfigs = [
         isActive: true
     },
     {
-        type: 'warehouse',
-        name: 'Warehouse',
+        type: 'vault',
+        name: 'Vault',
         description: 'Stores large quantities of resources safely',
         category: 'special',
         maxLevel: 30,
@@ -501,7 +501,7 @@ const buildingConfigs = [
                 { type: 'townhall', level: 4 }
             ]
         },
-        imageUrl: '/assets/buildings/warehouse.png',
+        imageUrl: '/assets/images/buildings/vault.jpg',
         isActive: true
     }
 ];
@@ -555,20 +555,20 @@ const testUser = {
     password: 'test1234',
     displayName: 'Test Player',
     inventory: {
-        gold: 1000,
+        gold: 100000,
         orbsCount: {
             common: 3,
             uncommon: 1,
             rare: 0,
-            veryRare: 0,
-            legendary: 0
+            veryRare: 10,
+            legendary: 10
         },
         resources: {
-            food: 200,
-            wood: 300,
-            stone: 250,
-            iron: 150,
-            gems: 10
+            food: 20000,
+            wood: 30000,
+            stone: 25000,
+            iron: 15000,
+            gems: 10000
         }
     },
     army: {

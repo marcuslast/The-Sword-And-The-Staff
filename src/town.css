@@ -8,3 +8,14 @@
         --hex-w: min(12vw, 96px);
     }
 }
+
+.empty-town-cell {
+    background-image: url('../public/components/grasslands/empty-grass.png');
+    background-size: cover;
+}
+
+.town-container {
+    background-image: url('../src/assets/images/buildings/perimeter.png');
+    background-size: cover;
+    overflow: auto;
+}

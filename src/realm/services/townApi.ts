@@ -41,6 +41,53 @@ export interface BuildingConfig {
     emoji: string; // Fallback for missing images
 }
 
+// Troop types and configurations
+export interface TroopStats {
+    attack: number;
+    defense: number;
+    health: number;
+    speed: number;
+    carryCapacity: number;
+}
+
+export interface TroopLevelConfig {
+    level: number;
+    stats: TroopStats;
+    trainingCost: Record<string, number>;
+    trainingTime: number;
+    populationCost: number;
+}
+
+export interface TroopConfig {
+    type: string;
+    name: string;
+    description: string;
+    buildingRequired: string;
+    imageUrl: string;
+    levels: TroopLevelConfig[];
+}
+
+export interface TrainingQueueItem {
+    _id?: string;
+    troopType: string;
+    level: number;
+    quantity: number;
+    startTime: string;
+    endTime: string;
+    buildingX: number;
+    buildingY: number;
+}
+
+export interface Army {
+    archers: Record<number, number>;
+    ballistas: Record<number, number>;
+    berserkers: Record<number, number>;
+    horsemen: Record<number, number>;
+    lancers: Record<number, number>;
+    spies: Record<number, number>;
+    swordsmen: Record<number, number>;
+}
+
 export interface Town {
     id: string;
     name: string;
@@ -55,51 +102,11 @@ export interface Town {
     lastCollected: string;
 }
 
-export interface TroopConfig {
-    type: string;
-    name: string;
-    description: string;
-    buildingRequired: string;
-    imageUrl: string;
-    levels: Array<{
-        level: number;
-        stats: {
-            attack: number;
-            defense: number;
-            health: number;
-            speed: number;
-            carryCapacity: number;
-        };
-        trainingCost: Record<string, number>;
-        trainingTime: number;
-        populationCost: number;
-    }>;
-}
-
-export interface TrainingQueueItem {
-    _id?: string;
-    troopType: string;
-    level: number;
-    quantity: number;
-    startTime: string;
-    endTime: string;
-    buildingX: number;
-    buildingY: number;
-}
-
 export interface TownResponse {
     town: Town;
     buildingConfigs: BuildingConfig[];
     troopConfigs?: TroopConfig[];
-    army?: {
-        archers: Record<number, number>;
-        ballistas: Record<number, number>;
-        berserkers: Record<number, number>;
-        horsemen: Record<number, number>;
-        lancers: Record<number, number>;
-        spies: Record<number, number>;
-        swordsmen: Record<number, number>;
-    };
+    army?: Army;
     trainingQueue?: TrainingQueueItem[];
 }
 
@@ -143,6 +150,7 @@ export interface SpeedUpBuildingResponse {
     newResources: Record<string, number>;
 }
 
+// Training-related types
 export interface TrainTroopsRequest {
     x: number;
     y: number;
@@ -163,7 +171,7 @@ export interface SpeedUpTrainingRequest {
 
 export interface SpeedUpTrainingResponse {
     message: string;
-    army: Record<string, Record<string, number>>;
+    army: Army;
     newResources: Record<string, number>;
     trainingQueue: TrainingQueueItem[];
 }
@@ -232,7 +240,7 @@ class TownAPI {
         return response.json();
     }
 
-    // Accept AbortSignal so callers can cancel
+    // Building operations
     async getTown(signal?: AbortSignal): Promise<TownResponse> {
         return this.request<TownResponse>('', { signal });
     }
@@ -268,7 +276,7 @@ class TownAPI {
         });
     }
 
-    // New training methods
+    // Training operations
     async trainTroops(data: TrainTroopsRequest, signal?: AbortSignal): Promise<TrainTroopsResponse> {
         return this.request<TrainTroopsResponse>('/train', {
             method: 'POST',

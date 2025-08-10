@@ -42,7 +42,7 @@ const BuildingPositionSchema = new Schema({
             'empty',
 
             // Special buildings
-            'townhall', 'market', 'warehouse',
+            'townhall', 'market', 'vault',
 
             // Resource buildings
             'house', 'mansion', 'farm', 'mine', 'lumbermill', 'quarry', 'gem_mine',

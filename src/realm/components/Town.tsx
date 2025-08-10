@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import useTownLogic from '../hooks/useTownLogic';
 import useRealmLogic from '../hooks/useRealmLogic';
+import TrainingCenter from "./TroopTrainingCenter";
+import '../../town.css';
 
 interface TownProps {
     onBack?: () => void;
@@ -114,7 +116,7 @@ const BUILDING_VISUALS: Record<string, {
         icon: '🏪',
         shadowColor: 'shadow-purple-900/50'
     },
-    warehouse: {
+    vault: {
         color: 'from-indigo-500 to-indigo-700',
         icon: '🏭',
         shadowColor: 'shadow-indigo-900/50'
@@ -262,7 +264,7 @@ const BuildingCell: React.FC<BuildingCellProps & { onTimerComplete?: () => void 
             onClick={() => onClick(x, y)}
             className={`
                 relative w-full h-full transition-opacity duration-200
-                ${isEmpty ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 hover:opacity-90' : `bg-gradient-to-br ${visual.color} ${visual.shadowColor}`}
+                ${isEmpty ? 'empty-town-cell hover:opacity-90' : `bg-gradient-to-br ${visual.color} ${visual.shadowColor}`}
                 ${isConstructing || isUpgrading ? 'animate-pulse' : ''}
                 text-white overflow-hidden
             `}
@@ -361,10 +363,11 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
     const [selectedBuilding, setSelectedBuilding] = useState<{ x: number; y: number } | null>(null);
     const [showBuildMenu, setShowBuildMenu] = useState(false);
     const [showTrainingMenu, setShowTrainingMenu] = useState(false);
-    const [activeView, setActiveView] = useState<'town' | 'army' | 'training'>('town');
+    const [activeView, setActiveView] = useState<'town' | 'army' | 'training' | 'center'>('town');
     const [selectedTroopType, setSelectedTroopType] = useState<string>('');
     const [trainingQuantity, setTrainingQuantity] = useState<number>(1);
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+    const [showTrainingCenter, setShowTrainingCenter] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -538,11 +541,16 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         }
     };
 
+    // FIXED: Building cost checking - find level 1 cost instead of assuming index 0
     const canAffordBuilding = (buildingType: string): boolean => {
         const config = townLogic.getBuildingConfig(buildingType);
         if (!config || !realmLogic.inventory) return false;
 
-        const cost = (config.buildCost[0]?.resources || {}) as Record<string, number>;
+        // Fix: Find the cost for level 1, not just take index 0
+        const level1Cost = config.buildCost.find(c => c.level === 1);
+        if (!level1Cost) return false;
+
+        const cost = level1Cost.resources || {};
         const resources = (realmLogic.inventory.resources || {}) as Record<string, number>;
         const gold = realmLogic.inventory.gold ?? 0;
 
@@ -555,7 +563,7 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         return true;
     };
 
-
+    // FIXED: Training cost checking with proper level lookup
     const canAffordTraining = (troopType: string, quantity: number): boolean => {
         const config = townLogic.getTroopConfig(troopType);
         const building = selectedBuilding
@@ -565,9 +573,11 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         if (!config || !building || !realmLogic.inventory) return false;
 
         const buildingLevel = building.level || 1;
-        const cost = config.levels[buildingLevel - 1]?.trainingCost as Record<string, number> | undefined;
-        if (!cost) return false;
+        // Fix: Find the correct level in the troop config
+        const levelConfig = config.levels.find(l => l.level === buildingLevel);
+        if (!levelConfig) return false;
 
+        const cost = levelConfig.trainingCost || {};
         const resources = (realmLogic.inventory.resources || {}) as Record<string, number>;
         const gold = realmLogic.inventory.gold ?? 0;
 
@@ -581,6 +591,50 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         return true;
     };
 
+    // NEW: Helper function to get training cost for preview
+    const getTrainingCost = (troopType: string, quantity: number): Record<string, number> | null => {
+        const config = townLogic.getTroopConfig(troopType);
+        const building = selectedBuilding
+            ? townLogic.town?.buildings.find(b => b.x === selectedBuilding.x && b.y === selectedBuilding.y)
+            : null;
+
+        if (!config || !building) return null;
+
+        const buildingLevel = building.level || 1;
+        const levelConfig = config.levels.find(l => l.level === buildingLevel);
+        if (!levelConfig) return null;
+
+        const cost = levelConfig.trainingCost || {};
+        const totalCost: Record<string, number> = {};
+
+        for (const [resource, amount] of Object.entries(cost)) {
+            totalCost[resource] = amount * quantity;
+        }
+
+        return totalCost;
+    };
+
+    // NEW: Helper function to get building cost for preview
+    const getBuildingCost = (buildingType: string): Record<string, number> | null => {
+        const config = townLogic.getBuildingConfig(buildingType);
+        if (!config) return null;
+
+        const level1Cost = config.buildCost.find(c => c.level === 1);
+        return level1Cost?.resources || null;
+    };
+
+    // Helper function for resource icons
+    const getResourceIcon = (resource: string): string => {
+        const icons: Record<string, string> = {
+            food: '🌾',
+            wood: '🪵',
+            stone: '🗿',
+            iron: '⚒️',
+            gold: '💰',
+            gems: '💎'
+        };
+        return icons[resource] || '📦';
+    };
 
     const getTotalTroops = (): number => {
         if (!townLogic.army) return 0;
@@ -593,7 +647,6 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         });
         return total;
     };
-
 
     if (townLogic.loading && !townLogic.town) {
         return (
@@ -731,6 +784,16 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                             >
                                 🎯 Training ({townLogic.activeTraining.length})
                             </button>
+                            <button
+                                onClick={() => setShowTrainingCenter(true)}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                    activeView === 'center'
+                                        ? 'bg-orange-600 text-white shadow-lg'
+                                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                🏛️ Training Center
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -770,9 +833,9 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
             )}
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="max-w-7xl mx-auto px-4 py-6 town-container">
                 {activeView === 'town' && (
-                    <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-4 mb-6">
+                    <div className="rounded-2xl p-4 mb-6">
                         <div className="flex justify-center items-center min-h-[calc(100vh-200px)] overflow-x-auto">
                             <div
                                 className="relative mx-auto"
@@ -897,6 +960,20 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                     </div>
                 )}
 
+                {showTrainingCenter && (
+                    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                        <div className="bg-black rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-y-auto relative">
+                            <button
+                                onClick={() => setShowTrainingCenter(false)}
+                                className="absolute top-4 right-4 text-white text-3xl hover:text-red-400"
+                            >
+                                ×
+                            </button>
+                            <TrainingCenter />
+                        </div>
+                    </div>
+                )}
+
                 {activeView === 'training' && (
                     <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-6">
                         <h2 className="text-2xl font-bold text-white mb-6 text-center">🎯 Training Queue</h2>
@@ -996,9 +1073,10 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                 </button>
                             </div>
 
+                            {/* ENHANCED Build Menu with Better Cost Preview */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto">
                                 {townLogic.buildingConfigs.map(config => {
-                                    const cost = config.buildCost[0]?.resources || {};
+                                    const cost = getBuildingCost(config.type);
                                     const canAfford = canAffordBuilding(config.type);
                                     const visual = BUILDING_VISUALS[config.type] || {
                                         color: 'from-gray-500 to-gray-700',
@@ -1018,12 +1096,40 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                         >
                                             <div className="text-2xl mb-1">{visual.icon}</div>
                                             <div className="font-bold text-sm">{config.name}</div>
-                                            <div className="text-xs opacity-80 mt-1">
-                                                {Object.entries(cost).map(([r, a]) => `${a} ${r}`).join(', ')}
-                                            </div>
+
+                                            {/* Enhanced Cost Display */}
+                                            {cost && (
+                                                <div className="text-xs opacity-80 mt-1 space-y-1">
+                                                    {Object.entries(cost).map(([resource, amount]) => {
+                                                        const playerAmount = resource === 'gold'
+                                                            ? (realmLogic.inventory?.gold ?? 0)
+                                                            // @ts-ignore
+                                                            : (realmLogic.inventory?.resources?.[resource] ?? 0);
+                                                        const hasEnough = playerAmount >= amount;
+
+                                                        return (
+                                                            <div
+                                                                key={resource}
+                                                                className={`${hasEnough ? 'text-green-300' : 'text-red-300'}`}
+                                                            >
+                                                                {amount} {resource}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Build Time */}
                                             <div className="text-xs opacity-60 mt-1">
-                                                ⏱️ {config.buildCost[0]?.time}s
+                                                ⏱️ {config.buildCost.find(c => c.level === 1)?.time || 0}s
                                             </div>
+
+                                            {/* Insufficient Resources Indicator */}
+                                            {!canAfford && (
+                                                <div className="text-xs text-red-400 mt-1">
+                                                    Insufficient resources
+                                                </div>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -1069,7 +1175,8 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                         {availableTroops.map(config => {
                                             const buildingLevel = building.level || 1;
-                                            const cost = config.levels[buildingLevel - 1]?.trainingCost;
+                                            const levelConfig = config.levels.find(l => l.level === buildingLevel);
+                                            const cost = levelConfig?.trainingCost;
                                             const icon = TROOP_ICONS[config.type] || '⚔️';
                                             const isSelected = selectedTroopType === config.type;
 
@@ -1095,8 +1202,8 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                                             }}
                                                         />
                                                         <span className="fallback-icon text-2xl absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
-                        {icon}
-                    </span>
+                                            {icon}
+                                        </span>
                                                     </div>
                                                     <div className="font-bold text-sm">{config.name}</div>
                                                     <div className="text-xs opacity-80 mt-1">
@@ -1112,7 +1219,7 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                         })}
                                     </div>
 
-                                    {/* Quantity and Train Button */}
+                                    {/* ENHANCED Quantity and Train Button with Cost Preview */}
                                     {selectedTroopType && (
                                         <div className="flex items-center gap-4 bg-white/10 rounded-lg p-4">
                                             <div className="flex items-center gap-2">
@@ -1127,12 +1234,55 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                                                 />
                                             </div>
 
+                                            {/* Enhanced Cost Preview */}
+                                            <div className="flex-1">
+                                                {(() => {
+                                                    const cost = getTrainingCost(selectedTroopType, trainingQuantity);
+                                                    const canAfford = canAffordTraining(selectedTroopType, trainingQuantity);
+
+                                                    return (
+                                                        <div className="bg-black/30 rounded-lg p-3">
+                                                            <div className="text-sm text-white/80 mb-1">Total Cost:</div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {cost ? Object.entries(cost).map(([resource, amount]) => {
+                                                                    const playerAmount = resource === 'gold'
+                                                                        ? (realmLogic.inventory?.gold ?? 0)
+                                                                        // @ts-ignore
+                                                                        : (realmLogic.inventory?.resources?.[resource] ?? 0);
+                                                                    const hasEnough = playerAmount >= amount;
+
+                                                                    return (
+                                                                        <span
+                                                                            key={resource}
+                                                                            className={`text-xs px-2 py-1 rounded ${
+                                                                                hasEnough
+                                                                                    ? 'bg-green-600/30 text-green-200'
+                                                                                    : 'bg-red-600/30 text-red-200'
+                                                                            }`}
+                                                                        >
+                                                                            {amount} {resource}
+                                                                            {!hasEnough && (
+                                                                                <span className="text-red-300 ml-1">
+                                                                                    (need {amount - playerAmount} more)
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    );
+                                                                }) : (
+                                                                    <span className="text-white/60 text-xs">Cost calculation error</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
                                             <button
                                                 onClick={handleTrainTroops}
                                                 disabled={!canAffordTraining(selectedTroopType, trainingQuantity) || townLogic.training}
-                                                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {townLogic.training ? 'Starting...' : `Train ${trainingQuantity}x ${selectedTroopType}`}
+                                                {townLogic.training ? 'Starting...' : `Train ${trainingQuantity}x`}
                                             </button>
                                         </div>
                                     )}
@@ -1160,7 +1310,7 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
 
                 const canUpgrade = !building.isUpgrading && !building.isBuilding &&
                     building.level < config.maxLevel;
-                const nextLevelCost = config.buildCost[Math.min(building.level, config.buildCost.length - 1)]?.resources || {};
+                const nextLevelCost = config.buildCost.find(c => c.level === building.level + 1)?.resources || {};
 
                 // Check if this is a military building that can train troops
                 const availableTroops = townLogic.troopConfigs.filter(

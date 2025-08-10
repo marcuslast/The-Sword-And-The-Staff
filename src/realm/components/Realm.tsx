@@ -79,7 +79,7 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
         );
     }
 
-    // Render town view - simple boolean check
+    // Render town view
     if (showTown) {
         return <Town onBack={() => setShowTown(false)} />;
     }
@@ -202,6 +202,7 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                     </div>
                 )}
 
+                {/* Content based on current view */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Orb Collection */}
                     <div className="lg:col-span-2">
@@ -237,27 +238,32 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                                                     )}
                                                 </div>
 
-                                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                                     {orbsOfRarity.slice(0, 12).map((orb) => (
                                                         <button
                                                             key={orb.id}
                                                             onClick={() => handleOpenOrb(orb.id, orb.rarity)}
                                                             disabled={realmLogic.openingOrbs.has(orb.id) || realmLogic.isLoading}
                                                             className={`
-                                                                relative aspect-square rounded-xl bg-gradient-to-br ${gradient}
-                                                                hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl
-                                                                ${RARITY_GLOW[rarity]}
-                                                                flex items-center justify-center text-4xl
-                                                                ${realmLogic.openingOrbs.has(orb.id) ? 'animate-pulse opacity-50' : ''}
-                                                                disabled:cursor-not-allowed
-                                                            `}
+                                                                    relative overflow-hidden rounded-xl p-4 transition-all duration-300
+                                                                    bg-gradient-to-br ${gradient} ${RARITY_GLOW[rarity]}
+                                                                    hover:scale-105 hover:shadow-xl active:scale-95
+                                                                    disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+                                                                    border-2 border-white/20 hover:border-white/40
+                                                                `}
                                                         >
-                                                            🔮
-                                                            {realmLogic.openingOrbs.has(orb.id) && (
-                                                                <div className="absolute inset-0 bg-white/20 rounded-xl flex items-center justify-center">
-                                                                    <div className="animate-spin text-white">⭐</div>
-                                                                </div>
+                                                            <div className="text-2xl mb-1">🔮</div>
+                                                            {realmLogic.openingOrbs.has(orb.id) ? (
+                                                                <div className="text-xs text-white animate-pulse">Opening...</div>
+                                                            ) : (
+                                                                <div className="text-xs text-white opacity-90 capitalize">{rarity}</div>
                                                             )}
+
+                                                            {/* Sparkle effect */}
+                                                            <div className="absolute inset-0 opacity-30">
+                                                                <div className="absolute top-2 right-2 text-white/60">✨</div>
+                                                                <div className="absolute bottom-2 left-2 text-white/40">💫</div>
+                                                            </div>
                                                         </button>
                                                     ))}
                                                 </div>
@@ -269,77 +275,52 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                         </div>
                     </div>
 
-                    {/* Recent Openings and Inventory */}
+                    {/* Recent Activity Sidebar */}
                     <div className="space-y-6">
-                        {/* Inventory Summary */}
-                        {realmLogic.inventory && (
-                            <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-white/20">
-                                <h3 className="text-xl font-bold text-white mb-4">Orb Collection</h3>
-                                <div className="space-y-3">
-                                    {Object.entries(realmLogic.inventory.orbsCount).map(([rarity, count]) => {
-                                        const displayRarity = rarity === 'veryRare' ? 'very rare' : rarity;
-                                        const orbRarity = displayRarity as OrbRarity;
-                                        const gradient = RARITY_COLORS[orbRarity];
-
-                                        return (
-                                            <div key={rarity} className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-3">
-                                                    <div className={`w-4 h-4 rounded bg-gradient-to-r ${gradient}`}></div>
-                                                    <span className="text-white capitalize">{displayRarity}</span>
-                                                </div>
-                                                <span className="text-white font-bold">{count}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Recent Openings */}
-                        {realmLogic.recentOpenings.length > 0 && (
-                            <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-white/20">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-xl font-bold text-white">Recent Discoveries</h3>
-                                    <button
-                                        onClick={realmLogic.clearRecentOpenings}
-                                        className="text-xs text-white/60 hover:text-white/80 underline"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                                <div className="space-y-3">
-                                    {realmLogic.recentOpenings.map((opening) => (
-                                        <div key={opening.id} className="bg-white/10 rounded-lg p-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className={`capitalize font-bold ${
-                                                    opening.rarity === 'common' ? 'text-gray-300' :
-                                                        opening.rarity === 'uncommon' ? 'text-green-300' :
-                                                            opening.rarity === 'rare' ? 'text-blue-300' :
-                                                                opening.rarity === 'very rare' ? 'text-purple-300' :
-                                                                    'text-yellow-300'
-                                                }`}>
-                                                    {opening.rarity} Orb
-                                                </span>
+                        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 shadow-xl border border-white/20">
+                            <h3 className="font-bold text-white mb-3">Recent Openings</h3>
+                            {realmLogic.recentOpenings.length === 0 ? (
+                                <p className="text-white/60 text-sm">No recent orb openings</p>
+                            ) : (
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                    {realmLogic.recentOpenings.slice(0, 10).map((opening, index) => (
+                                        <div
+                                            key={`${opening.id}-${index}`}
+                                            className="bg-white/10 rounded-lg p-2 text-sm"
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                    <span className={`capitalize ${
+                                                        opening.rarity === 'common' ? 'text-gray-300' :
+                                                            opening.rarity === 'uncommon' ? 'text-green-300' :
+                                                                opening.rarity === 'rare' ? 'text-blue-300' :
+                                                                    opening.rarity === 'very rare' ? 'text-purple-300' :
+                                                                        'text-yellow-300'
+                                                    }`}>
+                                                        {opening.rarity} Orb
+                                                    </span>
                                                 <span className="text-yellow-300">+{opening.contents.gold} 💰</span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
+
 
                 {/* Instructions */}
                 <div className="mt-8 text-center">
                     <div className="bg-white/10 backdrop-blur rounded-2xl p-6 max-w-2xl mx-auto">
-                        <h3 className="font-bold text-white mb-3">How to Earn Orbs</h3>
+                        <h3 className="font-bold text-white mb-3">How to Build Your Realm</h3>
                         <ul className="space-y-2 text-purple-200 text-sm">
                             <li>🎮 Complete solo adventures to earn 2 crystal orbs</li>
                             <li>🏆 Higher rarity orbs contain more gold and better rewards</li>
                             <li>💎 Legendary orbs are extremely rare but contain amazing treasures</li>
                             <li>🔮 Open multiple orbs of the same rarity for efficiency</li>
                             <li>🏘️ Use resources from orbs to build and upgrade your town!</li>
+                            <li>⚔️ Train troops in military buildings to build your army!</li>
                         </ul>
                     </div>
                 </div>
