@@ -37,9 +37,13 @@ const BuildingPositionSchema = new Schema({
     type: {
         type: String,
         required: true,
-        enum: ['empty', 'house', 'farm', 'mine', 'lumbermill', 'quarry', 'townhall', 'barracks', 'wall', 'tower']
+        enum: [
+            'empty', 'house', 'farm', 'mine', 'lumbermill', 'quarry', 'townhall',
+            'barracks', 'archery_range', 'siege_workshop', 'warrior_lodge',
+            'stable', 'training_grounds', 'spy_den', 'wall', 'tower'
+        ]
     },
-    level: { type: Number, default: 1, min: 0, max: 10 },
+    level: { type: Number, default: 1, min: 0, max: 30 },
     lastCollected: { type: Date, default: Date.now },
 
     // construction

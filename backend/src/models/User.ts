@@ -9,6 +9,34 @@ export interface UserResources {
     gems: number;
 }
 
+export interface TroopStats {
+    attack: number;
+    defense: number;
+    health: number;
+    speed: number;
+    carryCapacity: number;
+}
+
+export interface TrainingQueueItem {
+    troopType: string;
+    level: number;
+    quantity: number;
+    startTime: Date;
+    endTime: Date;
+    buildingX: number;
+    buildingY: number;
+}
+
+export interface Army {
+    archers: Record<number, number>;
+    ballistas: Record<number, number>;
+    berserkers: Record<number, number>;
+    horsemen: Record<number, number>;
+    lancers: Record<number, number>;
+    spies: Record<number, number>;
+    swordsmen: Record<number, number>;
+}
+
 export interface IUser extends Document {
     _id: mongoose.Types.ObjectId;
     username: string;
@@ -24,6 +52,7 @@ export interface IUser extends Document {
         totalBattlesWon: number;
         totalGoldCollected: number;
         totalOrbsOpened: number;
+        totalTroopsTrained: number;
     };
     inventory: {
         gold: number;
@@ -36,11 +65,48 @@ export interface IUser extends Document {
         };
         resources: UserResources;
     };
+    army: Army;
+    trainingQueue: TrainingQueueItem[];
     friends: mongoose.Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
+
+const TrainingQueueSchema = new Schema({
+    troopType: {
+        type: String,
+        required: true,
+        enum: ['archers', 'ballistas', 'berserkers', 'horsemen', 'lancers', 'spies', 'swordsmen']
+    },
+    level: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 30
+    },
+    quantity: {
+        type: Number,
+        required: true,
+        min: 1
+    },
+    startTime: {
+        type: Date,
+        required: true
+    },
+    endTime: {
+        type: Date,
+        required: true
+    },
+    buildingX: {
+        type: Number,
+        required: true
+    },
+    buildingY: {
+        type: Number,
+        required: true
+    }
+});
 
 const UserSchema = new Schema<IUser>({
     username: {
@@ -64,7 +130,7 @@ const UserSchema = new Schema<IUser>({
         type: String,
         required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 6 characters long'],
-        select: false // Don't include password in queries by default
+        select: false
     },
     displayName: {
         type: String,
@@ -104,6 +170,10 @@ const UserSchema = new Schema<IUser>({
         totalOrbsOpened: {
             type: Number,
             default: 0
+        },
+        totalTroopsTrained: {
+            type: Number,
+            default: 0
         }
     },
     inventory: {
@@ -136,11 +206,11 @@ const UserSchema = new Schema<IUser>({
         resources: {
             food: {
                 type: Number,
-                default: 50  // Starting resources
+                default: 50
             },
             wood: {
                 type: Number,
-                default: 100 // More wood to start building
+                default: 100
             },
             stone: {
                 type: Number,
@@ -156,6 +226,44 @@ const UserSchema = new Schema<IUser>({
             }
         }
     },
+    army: {
+        archers: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        ballistas: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        berserkers: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        horsemen: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        lancers: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        spies: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        },
+        swordsmen: {
+            type: Map,
+            of: Number,
+            default: new Map()
+        }
+    },
+    trainingQueue: [TrainingQueueSchema],
     friends: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -175,7 +283,7 @@ UserSchema.index({ username: 1 });
 UserSchema.index({ email: 1 });
 UserSchema.index({ isOnline: 1 });
 
-// Pre-save middleware to ensure resources are initialized
+// Pre-save middleware to ensure resources and army are initialized
 UserSchema.pre('save', function(this: IUser, next) {
     // Initialize resources if they don't exist
     if (!this.inventory.resources) {
@@ -188,19 +296,22 @@ UserSchema.pre('save', function(this: IUser, next) {
         };
     }
 
-    // Ensure all resource properties exist
-    const defaultResources = {
-        food: 50,
-        wood: 100,
-        stone: 75,
-        iron: 25,
-        gems: 0
-    };
+    // Initialize army if it doesn't exist
+    if (!this.army) {
+        this.army = {
+            archers: {},
+            ballistas: {},
+            berserkers: {},
+            horsemen: {},
+            lancers: {},
+            spies: {},
+            swordsmen: {}
+        };
+    }
 
-    for (const [resource, defaultValue] of Object.entries(defaultResources)) {
-        if (this.inventory.resources[resource as keyof UserResources] === undefined) {
-            (this.inventory.resources[resource as keyof UserResources] as number) = defaultValue;
-        }
+    // Initialize training queue
+    if (!this.trainingQueue) {
+        this.trainingQueue = [];
     }
 
     next();

@@ -2,8 +2,9 @@ import express, { Request, Response } from 'express';
 import Joi from 'joi';
 import Town, { ITown, BuildingPosition } from '../models/Town';
 import Building, { IBuilding } from '../models/Building';
-import User, { IUser } from '../models/User';
+import User, { IUser, TrainingQueueItem } from '../models/User';
 import { auth } from '../middleware/auth';
+import { getTroopConfig, getTrainingCost, getTrainingTime, TROOP_CONFIGS } from '../config/troops';
 
 const router = express.Router();
 
@@ -24,8 +25,19 @@ const speedupSchema = Joi.object({
     y: Joi.number().min(0).max(15).required()
 });
 
+const trainTroopsSchema = Joi.object({
+    x: Joi.number().min(0).max(19).required(),
+    y: Joi.number().min(0).max(15).required(),
+    troopType: Joi.string().valid('swordsmen', 'archers', 'ballistas', 'berserkers', 'horsemen', 'lancers', 'spies').required(),
+    quantity: Joi.number().min(1).max(100).required()
+});
+
+const speedupTrainingSchema = Joi.object({
+    trainingId: Joi.string().required()
+});
+
 // Helper to iterate Mongoose Map or plain object
-function forEachResource(res: any, cb: (key: string, value: number) => void) {
+function forEachResource(res: Map<string, number> | Record<string, number> | undefined, cb: (key: string, value: number) => void) {
     if (!res) return;
     if (res instanceof Map) {
         res.forEach((v: number, k: string) => cb(k, v));
@@ -54,7 +66,7 @@ const calculateProduction = (
         const config = buildingConfigs.get(building.type);
         if (!config?.production) return;
 
-        const levelProduction = config.production.find((p: any) => p.level === building.level);
+        const levelProduction = config.production.find((p) => p.level === building.level);
         if (!levelProduction) return;
 
         const cycles = Math.floor(timeDiff / (levelProduction.time * 1000));
@@ -66,6 +78,40 @@ const calculateProduction = (
     });
 
     return production;
+};
+
+// Process completed training automatically
+const processCompletedTraining = async (user: IUser): Promise<boolean> => {
+    const now = new Date();
+    let hasCompletions = false;
+
+    // Find completed training
+    const completedTraining = user.trainingQueue.filter(item => item.endTime <= now);
+
+    if (completedTraining.length === 0) return false;
+
+    // Process each completed training
+    completedTraining.forEach(training => {
+        const { troopType, level, quantity } = training;
+
+        // Add troops to army
+        const currentCount = (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).get(level) || 0;
+        (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).set(level, currentCount + quantity);
+
+        // Update stats
+        user.gameStats.totalTroopsTrained += quantity;
+
+        hasCompletions = true;
+    });
+
+    // Remove completed training from queue
+    user.trainingQueue = user.trainingQueue.filter(item => item.endTime > now);
+
+    if (hasCompletions) {
+        await user.save();
+    }
+
+    return hasCompletions;
 };
 
 // Finalize finished timers and update layout levels
@@ -81,7 +127,6 @@ async function finalizeTimedOperations(town: ITown): Promise<boolean> {
             b.isBuilding = false;
             b.buildStartTime = undefined;
             b.buildEndTime = undefined;
-            // ensure constructed level becomes 1
             b.level = Math.max(1, b.level || 1);
             if (layout[b.y] && layout[b.y][b.x]) {
                 layout[b.y][b.x] = { ...(layout[b.y][b.x] || {}), type: b.type, level: b.level, id: `${b.x}-${b.y}` };
@@ -110,12 +155,31 @@ async function finalizeTimedOperations(town: ITown): Promise<boolean> {
     return changed;
 }
 
+// Helper function to create initial layout
+function createInitialLayout(width: number, height: number, buildings: BuildingPosition[]): Record<string, any>[][] {
+    const layout: Record<string, any>[][] = [];
+    for (let y = 0; y < height; y++) {
+        const row: Record<string, any>[] = [];
+        for (let x = 0; x < width; x++) {
+            const building = buildings.find(b => b.x === x && b.y === y);
+            if (building) {
+                row.push({ type: building.type, level: building.level, id: `${x}-${y}` });
+            } else {
+                row.push({ type: 'empty', level: 0, id: `${x}-${y}` });
+            }
+        }
+        layout.push(row);
+    }
+    return layout;
+}
+
 // @route   GET /api/town
-// @desc    Get user's town (auto-completes any finished timers)
+// @desc    Get user's town (auto-completes any finished timers and training)
 // @access  Private
 router.get('/', auth, async (req: Request, res: Response) => {
     try {
-        let town = await Town.findOne({ userId: req.user?.userId }) as ITown;
+        let town = await Town.findOne({ userId: req.user?.userId }) as ITown | null;
+        let user = await User.findById(req.user?.userId) as IUser | null;
 
         if (!town) {
             // Create initial town for new user
@@ -135,6 +199,13 @@ router.get('/', auth, async (req: Request, res: Response) => {
 
             await town.save();
         }
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Process completed training
+        await processCompletedTraining(user);
 
         // Get building configurations
         const buildingConfigs = await Building.find({ isActive: true });
@@ -169,7 +240,10 @@ router.get('/', auth, async (req: Request, res: Response) => {
                 production: b.production,
                 unlockRequirements: b.unlockRequirements,
                 imageUrl: b.imageUrl
-            }))
+            })),
+            troopConfigs: Object.values(TROOP_CONFIGS),
+            army: user.army,
+            trainingQueue: user.trainingQueue
         });
 
     } catch (error) {
@@ -183,11 +257,14 @@ router.get('/', auth, async (req: Request, res: Response) => {
 // @access  Private
 router.post('/collect', auth, async (req: Request, res: Response) => {
     try {
-        const town = await Town.findOne({ userId: req.user?.userId }) as ITown;
+        const town = await Town.findOne({ userId: req.user?.userId }) as ITown | null;
         if (!town) return res.status(404).json({ message: 'Town not found' });
 
-        const user = await User.findById(req.user?.userId) as IUser;
+        const user = await User.findById(req.user?.userId) as IUser | null;
         if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Process completed training first
+        await processCompletedTraining(user);
 
         // Get building configurations
         const buildingConfigs = await Building.find({ isActive: true });
@@ -207,8 +284,9 @@ router.post('/collect', auth, async (req: Request, res: Response) => {
         }
 
         Object.entries(production).forEach(([resource, amount]) => {
-            if (user.inventory.resources![resource as keyof typeof user.inventory.resources] !== undefined) {
-                (user.inventory.resources![resource as keyof typeof user.inventory.resources] as number) += amount;
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            if (user.inventory.resources![resourceKey] !== undefined) {
+                (user.inventory.resources![resourceKey] as number) += amount;
             }
         });
 
@@ -224,6 +302,261 @@ router.post('/collect', auth, async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error('Collect resources error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// @route   POST /api/town/train
+// @desc    Start training troops
+// @access  Private
+router.post('/train', auth, async (req: Request, res: Response) => {
+    try {
+        const { error, value } = trainTroopsSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({
+                message: 'Validation error',
+                details: error.details[0].message
+            });
+        }
+
+        const { x, y, troopType, quantity } = value;
+        const userId = req.user?.userId!;
+
+        const [town, user] = await Promise.all([
+            Town.findOne({ userId }) as Promise<ITown | null>,
+            User.findById(userId) as Promise<IUser | null>
+        ]);
+
+        if (!town || !user) {
+            return res.status(404).json({ message: 'Town or user not found' });
+        }
+
+        // Process completed training first
+        await processCompletedTraining(user);
+
+        // Check if building exists and is the correct type
+        const building = town.buildings.find(b => b.x === x && b.y === y);
+        if (!building) {
+            return res.status(404).json({ message: 'Building not found' });
+        }
+
+        const troopConfig = getTroopConfig(troopType);
+        if (!troopConfig) {
+            return res.status(400).json({ message: 'Invalid troop type' });
+        }
+
+        if (building.type !== troopConfig.buildingRequired) {
+            return res.status(400).json({
+                message: `${troopConfig.name} can only be trained in ${troopConfig.buildingRequired}`
+            });
+        }
+
+        if (building.isBuilding || building.isUpgrading) {
+            return res.status(400).json({ message: 'Building is currently unavailable' });
+        }
+
+        const buildingLevel = building.level || 1;
+        const trainingLevel = buildingLevel; // Troops trained at building level
+
+        // Get training cost and time
+        const cost = getTrainingCost(troopType, trainingLevel);
+        const timePerUnit = getTrainingTime(troopType, trainingLevel);
+
+        if (!cost || !timePerUnit) {
+            return res.status(400).json({ message: 'Training configuration not found' });
+        }
+
+        // Ensure resources object
+        if (!user.inventory.resources) {
+            user.inventory.resources = { food: 0, wood: 0, stone: 0, iron: 0, gems: 0 };
+        }
+
+        // Calculate total cost
+        const totalCost: Record<string, number> = {};
+        Object.entries(cost).forEach(([resource, amount]) => {
+            totalCost[resource] = (amount as number) * quantity;
+        });
+
+        // Check resources
+        for (const [resource, totalAmount] of Object.entries(totalCost)) {
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            const have = (user.inventory.resources as any)[resourceKey] || 0;
+            if (have < totalAmount) {
+                return res.status(400).json({
+                    message: `Insufficient ${resource}. Need ${totalAmount}, have ${have}`
+                });
+            }
+        }
+
+        // Deduct resources
+        for (const [resource, totalAmount] of Object.entries(totalCost)) {
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            (user.inventory.resources as any)[resourceKey] -= totalAmount;
+        }
+
+        // Calculate training time
+        const totalTrainingTime = timePerUnit * quantity;
+        const now = new Date();
+        const endTime = new Date(now.getTime() + totalTrainingTime * 1000);
+
+        // Add to training queue
+        const trainingItem: TrainingQueueItem = {
+            troopType,
+            level: trainingLevel,
+            quantity,
+            startTime: now,
+            endTime,
+            buildingX: x,
+            buildingY: y
+        };
+
+        user.trainingQueue.push(trainingItem);
+
+        await user.save();
+
+        res.json({
+            message: `Training ${quantity} level ${trainingLevel} ${troopType} started`,
+            training: trainingItem,
+            newResources: user.inventory.resources,
+            trainingQueue: user.trainingQueue
+        });
+
+    } catch (error) {
+        console.error('Train troops error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// @route   POST /api/town/speedup-training
+// @desc    Speed up troop training with gems
+// @access  Private
+router.post('/speedup-training', auth, async (req: Request, res: Response) => {
+    try {
+        const { error, value } = speedupTrainingSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({
+                message: 'Validation error',
+                details: error.details[0].message
+            });
+        }
+
+        const { trainingId } = value;
+        const userId = req.user?.userId!;
+
+        const user = await User.findById(userId) as IUser | null;
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const trainingIndex = user.trainingQueue.findIndex(item => item._id?.toString() === trainingId);
+        if (trainingIndex === -1) {
+            return res.status(404).json({ message: 'Training not found' });
+        }
+
+        const training = user.trainingQueue[trainingIndex];
+        const now = new Date();
+        const remainingMs = Math.max(0, training.endTime.getTime() - now.getTime());
+
+        if (remainingMs === 0) {
+            return res.status(400).json({ message: 'Training already completed' });
+        }
+
+        // Calculate gem cost (1 gem per minute remaining)
+        const gemCost = Math.max(1, Math.ceil(remainingMs / 60000));
+        const gems = user.inventory.resources?.gems || 0;
+
+        if (gems < gemCost) {
+            return res.status(400).json({
+                message: `Insufficient gems. Need ${gemCost}, have ${gems}`
+            });
+        }
+
+        // Deduct gems
+        if (user.inventory.resources) {
+            user.inventory.resources.gems -= gemCost;
+        }
+
+        // Complete training immediately
+        const { troopType, level, quantity } = training;
+
+        // Add troops to army
+        const currentCount = (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).get(level) || 0;
+        (user.army[troopType as keyof typeof user.army] as unknown as Map<number, number>).set(level, currentCount + quantity);
+
+        // Remove from training queue
+        user.trainingQueue.splice(trainingIndex, 1);
+
+        // Update stats
+        user.gameStats.totalTroopsTrained += quantity;
+
+        await user.save();
+
+        res.json({
+            message: `Training completed instantly for ${gemCost} gems`,
+            army: user.army,
+            newResources: user.inventory.resources,
+            trainingQueue: user.trainingQueue
+        });
+
+    } catch (error) {
+        console.error('Speedup training error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// @route   DELETE /api/town/training/:trainingId
+// @desc    Cancel troop training (refunds 50% of resources)
+// @access  Private
+router.delete('/training/:trainingId', auth, async (req: Request, res: Response) => {
+    try {
+        const { trainingId } = req.params;
+        const userId = req.user?.userId!;
+
+        const user = await User.findById(userId) as IUser | null;
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const trainingIndex = user.trainingQueue.findIndex(item => item._id?.toString() === trainingId);
+        if (trainingIndex === -1) {
+            return res.status(404).json({ message: 'Training not found' });
+        }
+
+        const training = user.trainingQueue[trainingIndex];
+        const { troopType, level, quantity } = training;
+
+        // Get original cost
+        const cost = getTrainingCost(troopType, level);
+        if (!cost) {
+            return res.status(400).json({ message: 'Training cost not found' });
+        }
+
+        // Calculate refund (50% of original cost)
+        const refund: Record<string, number> = {};
+        Object.entries(cost).forEach(([resource, amount]) => {
+            refund[resource] = Math.floor((amount as number) * quantity * 0.5);
+        });
+
+        // Refund resources
+        if (!user.inventory.resources) {
+            user.inventory.resources = { food: 0, wood: 0, stone: 0, iron: 0, gems: 0 };
+        }
+
+        for (const [resource, amount] of Object.entries(refund)) {
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            (user.inventory.resources as any)[resourceKey] += amount;
+        }
+
+        // Remove from training queue
+        user.trainingQueue.splice(trainingIndex, 1);
+
+        await user.save();
+
+        res.json({
+            message: 'Training cancelled and 50% resources refunded',
+            refund,
+            newResources: user.inventory.resources,
+            trainingQueue: user.trainingQueue
+        });
+
+    } catch (error) {
+        console.error('Cancel training error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
@@ -245,9 +578,9 @@ router.post('/build', auth, async (req: Request, res: Response) => {
         const userId = req.user?.userId!;
 
         const [town, user, buildingConfig] = await Promise.all([
-            Town.findOne({ userId }) as Promise<ITown>,
-            User.findById(userId) as Promise<IUser>,
-            Building.findOne({ type, isActive: true }) as Promise<IBuilding>
+            Town.findOne({ userId }) as Promise<ITown | null>,
+            User.findById(userId) as Promise<IUser | null>,
+            Building.findOne({ type, isActive: true }) as Promise<IBuilding | null>
         ]);
 
         if (!town || !user || !buildingConfig) {
@@ -261,7 +594,7 @@ router.post('/build', auth, async (req: Request, res: Response) => {
         }
 
         // Get build cost for level 1
-        const buildCost = buildingConfig.buildCost.find((c: any) => c.level === 1);
+        const buildCost = buildingConfig.buildCost.find((c) => c.level === 1);
         if (!buildCost) {
             return res.status(400).json({ message: 'Building cost not configured' });
         }
@@ -275,7 +608,8 @@ router.post('/build', auth, async (req: Request, res: Response) => {
         let hasEnough = true;
         let lacking: { resource?: string; need?: number; have?: number } = {};
         forEachResource(buildCost.resources, (resource, cost) => {
-            const have = (user.inventory.resources![resource as keyof typeof user.inventory.resources] as number) || 0;
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            const have = (user.inventory.resources![resourceKey] as number) || 0;
             if (have < cost && hasEnough) {
                 hasEnough = false;
                 lacking = { resource, need: cost, have };
@@ -289,8 +623,9 @@ router.post('/build', auth, async (req: Request, res: Response) => {
 
         // Deduct resources
         forEachResource(buildCost.resources, (resource, cost) => {
-            if (user.inventory.resources![resource as keyof typeof user.inventory.resources] !== undefined) {
-                (user.inventory.resources![resource as keyof typeof user.inventory.resources] as number) -= cost;
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            if (user.inventory.resources![resourceKey] !== undefined) {
+                (user.inventory.resources![resourceKey] as number) -= cost;
             }
         });
 
@@ -362,8 +697,8 @@ router.post('/upgrade', auth, async (req: Request, res: Response) => {
         const userId = req.user?.userId!;
 
         const [town, user] = await Promise.all([
-            Town.findOne({ userId }) as Promise<ITown>,
-            User.findById(userId) as Promise<IUser>
+            Town.findOne({ userId }) as Promise<ITown | null>,
+            User.findById(userId) as Promise<IUser | null>
         ]);
 
         if (!town || !user) {
@@ -381,7 +716,7 @@ router.post('/upgrade', auth, async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Cannot upgrade while construction is in progress' });
         }
 
-        const buildingConfig = await Building.findOne({ type: building.type, isActive: true }) as IBuilding;
+        const buildingConfig = await Building.findOne({ type: building.type, isActive: true }) as IBuilding | null;
         if (!buildingConfig) {
             return res.status(404).json({ message: 'Building configuration not found' });
         }
@@ -390,7 +725,7 @@ router.post('/upgrade', auth, async (req: Request, res: Response) => {
         }
 
         // Get upgrade cost
-        const upgradeCost = buildingConfig.buildCost.find((c: any) => c.level === building.level + 1);
+        const upgradeCost = buildingConfig.buildCost.find((c) => c.level === building.level + 1);
         if (!upgradeCost) {
             return res.status(400).json({ message: 'Upgrade cost not configured' });
         }
@@ -404,7 +739,8 @@ router.post('/upgrade', auth, async (req: Request, res: Response) => {
         let hasEnough = true;
         let lacking: { resource?: string; need?: number; have?: number } = {};
         forEachResource(upgradeCost.resources, (resource, cost) => {
-            const have = (user.inventory.resources![resource as keyof typeof user.inventory.resources] as number) || 0;
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            const have = (user.inventory.resources![resourceKey] as number) || 0;
             if (have < cost && hasEnough) {
                 hasEnough = false;
                 lacking = { resource, need: cost, have };
@@ -418,8 +754,9 @@ router.post('/upgrade', auth, async (req: Request, res: Response) => {
 
         // Deduct resources
         forEachResource(upgradeCost.resources, (resource, cost) => {
-            if (user.inventory.resources![resource as keyof typeof user.inventory.resources] !== undefined) {
-                (user.inventory.resources![resource as keyof typeof user.inventory.resources] as number) -= cost;
+            const resourceKey = resource as keyof typeof user.inventory.resources;
+            if (user.inventory.resources![resourceKey] !== undefined) {
+                (user.inventory.resources![resourceKey] as number) -= cost;
             }
         });
 
@@ -471,8 +808,8 @@ router.post('/speedup', auth, async (req: Request, res: Response) => {
         const userId = req.user?.userId!;
 
         const [town, user] = await Promise.all([
-            Town.findOne({ userId }) as Promise<ITown>,
-            User.findById(userId) as Promise<IUser>
+            Town.findOne({ userId }) as Promise<ITown | null>,
+            User.findById(userId) as Promise<IUser | null>
         ]);
 
         if (!town || !user) return res.status(404).json({ message: 'Town or user not found' });
@@ -548,23 +885,5 @@ router.post('/speedup', auth, async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
-// Helper function to create initial layout
-function createInitialLayout(width: number, height: number, buildings: BuildingPosition[]): any[][] {
-    const layout: any[][] = [];
-    for (let y = 0; y < height; y++) {
-        const row: any[] = [];
-        for (let x = 0; x < width; x++) {
-            const building = buildings.find(b => b.x === x && b.y === y);
-            if (building) {
-                row.push({ type: building.type, level: building.level, id: `${x}-${y}` });
-            } else {
-                row.push({ type: 'empty', level: 0, id: `${x}-${y}` });
-            }
-        }
-        layout.push(row);
-    }
-    return layout;
-}
 
 export default router;
