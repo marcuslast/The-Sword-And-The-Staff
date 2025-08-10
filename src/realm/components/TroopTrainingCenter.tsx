@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import useTownLogic from '../hooks/useTownLogic';
 import useRealmLogic from '../hooks/useRealmLogic';
 
+interface TroopTrainingCenterProps {
+    onBack?: () => void;
+}
+
 interface TroopStats {
     attack: number;
     defense: number;
@@ -91,7 +95,7 @@ const TrainingTimer: React.FC<{ endTime: string; onComplete?: () => void }> = ({
     return <span className="text-yellow-400 font-mono">{format(remainingMs)}</span>;
 };
 
-const TroopTrainingCenter: React.FC = () => {
+const TroopTrainingCenter: React.FC<TroopTrainingCenterProps> = ({ onBack }) => {
     const townLogic = useTownLogic();
     const realmLogic = useRealmLogic();
 
@@ -286,6 +290,18 @@ const TroopTrainingCenter: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br p-6">
             <div className="training-center"></div>
+
+            <div className="fixed top-4 left-4 z-[60]">
+                <button
+                    onClick={onBack ?? (() => window.history.back())}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 text-white font-semibold hover:bg-white/30 backdrop-blur transition"
+                    aria-label="Go back"
+                >
+                    <span>←</span>
+                    <span className="hidden sm:inline">Back</span>
+                </button>
+            </div>
+
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-8">

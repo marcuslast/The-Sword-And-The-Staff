@@ -1,41 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { orbAPI, Orb, OrbRarity, OrbContents } from '../services/orbApi';
+// src/realm/hooks/useRealmLogic.ts
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { orbAPI, OrbRarity, Orb, UserInventory, OrbContents } from '../services/orbApi';
 
-export interface UserInventory {
-    gold: number;
-    orbsCount: {
-        common: number;
-        uncommon: number;
-        rare: number;
-        veryRare: number;
-        legendary: number;
-    };
-    resources?: {
-        food: number;
-        wood: number;
-        stone: number;
-        iron: number;
-        gems: number;
-    };
-}
-
-export type RealmMode = 'home' | 'inventory' | 'map' | 'orbs';
-export type RealmView = 'orbs' | 'town';
+export type RealmMode = 'home' | 'orbs' | 'town' | 'missions' | 'inventory' | 'settings';
 
 export interface RecentOpening {
-    rarity: string;
+    id: string;
+    rarity: OrbRarity;
     contents: OrbContents;
     timestamp: number;
-    id: string;
-}
-
-export interface GameReward {
-    rarity: OrbRarity;
 }
 
 export interface GameCompletionData {
     goldCollected: number;
     orbsToAward?: number;
+}
+
+export interface GameReward {
+    rarity: OrbRarity;
 }
 
 export interface GameCompletionResult {
@@ -69,12 +51,13 @@ const useRealmLogic = () => {
     const [completingGame, setCompletingGame] = useState(false);
     const [lastGameRewards, setLastGameRewards] = useState<GameCompletionResult | null>(null);
 
-    // Rate limiting and debouncing
-    const lastLoadTime = useRef<number>(0);
-    const loadTimeoutRef = useRef<number | null>(null);
-    const rateLimitedUntil = useRef<number>(0);
-    const MIN_LOAD_INTERVAL = 5000; // 5 seconds between loads
-    const RATE_LIMIT_BACKOFF = 60000; // 1 minute backoff after 429
+    // Request deduplication
+    const loadingPromiseRef = useRef<Promise<any> | null>(null);
+    const dataLoadedRef = useRef<boolean>(false);
+    const lastLoadTimeRef = useRef<number>(0);
+
+    // Cache duration in milliseconds (30 seconds)
+    const CACHE_DURATION = 30 * 1000;
 
     // Helper function to validate rarity
     const isValidRarity = (rarity: string): rarity is OrbRarity => {
@@ -93,126 +76,99 @@ const useRealmLogic = () => {
         }
     });
 
-    // Check if we're currently rate limited
-    const isRateLimited = (): boolean => {
-        return Date.now() < rateLimitedUntil.current;
-    };
+    // Load inventory and orbs with fallback and request deduplication
+    const loadInventory = useCallback(async (showLoading: boolean = true, forceRefresh: boolean = false) => {
+        // Check if data is cached and still fresh
+        const now = Date.now();
+        const isCacheFresh = (now - lastLoadTimeRef.current) < CACHE_DURATION;
 
-    // Check if enough time has passed since last load
-    const canLoadNow = (): boolean => {
-        return Date.now() - lastLoadTime.current >= MIN_LOAD_INTERVAL;
-    };
-
-    // Debounced inventory loading with rate limit handling
-    const debouncedLoadInventory = useCallback((showLoading: boolean = false, force: boolean = false) => {
-        // Clear any existing timeout
-        if (loadTimeoutRef.current) {
-            clearTimeout(loadTimeoutRef.current);
-            loadTimeoutRef.current = null;
+        if (!forceRefresh && dataLoadedRef.current && isCacheFresh && inventory) {
+            console.log('🔮 Using cached inventory data');
+            return { orbs, summary: inventory };
         }
 
-        // If rate limited and not forced, skip
-        if (isRateLimited() && !force) {
-            console.log('⏸️ Skipping inventory load - rate limited');
-            return Promise.resolve();
-        }
-
-        // If recently loaded and not forced, debounce
-        if (!canLoadNow() && !force) {
-            console.log('⏸️ Debouncing inventory load');
-            return new Promise<void>((resolve) => {
-                const delay = MIN_LOAD_INTERVAL - (Date.now() - lastLoadTime.current);
-                loadTimeoutRef.current = window.setTimeout(() => {
-                    loadInventoryInternal(showLoading).then(() => resolve()).catch(() => resolve());
-                }, delay);
-            });
-        }
-
-        return loadInventoryInternal(showLoading);
-    }, []);
-
-    // Internal inventory loading with rate limit handling
-    const loadInventoryInternal = async (showLoading: boolean = true) => {
-        try {
-            if (showLoading) setLoading(true);
-            setError(null);
-
-            console.log('🔮 Loading realm inventory...');
-
-            // Try to load from API
-            const data = await orbAPI.getOrbs(false);
-            console.log('✅ Successfully loaded inventory from API:', data);
-
-            setOrbs(data.orbs);
-            setInventory(data.summary);
-            lastLoadTime.current = Date.now();
-
-            // Reset rate limit flag on success
-            rateLimitedUntil.current = 0;
-
-            await getRecentOpenings();
-            return data;
-
-        } catch (error) {
-            console.error('❌ Failed to load inventory from API:', error);
-
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-            // Handle rate limiting specifically
-            if (errorMessage.includes('429') || errorMessage.includes('Too many requests')) {
-                console.warn('🚫 Rate limited - backing off');
-                rateLimitedUntil.current = Date.now() + RATE_LIMIT_BACKOFF;
-                setError('⚠️ Too many requests - please wait a moment before refreshing');
-
-                // Don't throw on rate limit if we already have inventory data
-                if (inventory) {
-                    return;
-                }
+        // If there's already a loading request in progress, wait for it
+        if (loadingPromiseRef.current) {
+            console.log('🔮 Waiting for existing inventory request...');
+            try {
+                return await loadingPromiseRef.current;
+            } catch (error) {
+                // If the existing request failed, we'll make a new one below
+                loadingPromiseRef.current = null;
             }
+        }
 
-            // Check if it's the HTML error (API endpoint issue)
-            const isHTMLError = errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token');
+        // Create new loading promise
+        const loadingPromise = (async () => {
+            try {
+                if (showLoading) setLoading(true);
+                setError(null);
 
-            if (isHTMLError) {
-                setError('⚠️ Backend API not available. Using mock data for testing. Please check your server setup.');
-                console.log('🔧 Using mock data due to API issues');
+                console.log('🔮 Loading realm inventory...');
 
-                // Use mock data for testing UI
-                const mockData: { orbs: Orb[]; summary: UserInventory } = {
-                    orbs: [],
-                    summary: getMockInventory()
-                };
+                // Try to load from API
+                const data = await orbAPI.getOrbs(false);
+                console.log('✅ Successfully loaded inventory from API:', data);
 
-                setOrbs(mockData.orbs);
-                setInventory(mockData.summary);
+                setOrbs(data.orbs);
+                setInventory(data.summary);
+                dataLoadedRef.current = true;
+                lastLoadTimeRef.current = now;
 
-                return mockData;
-            } else if (!errorMessage.includes('429')) {
-                // Other errors (auth, network, etc.) - but not rate limiting
-                setError(`Failed to load inventory: ${errorMessage}`);
+                // Load recent openings
+                try {
+                    await getRecentOpenings();
+                } catch (recentError) {
+                    console.warn('Failed to load recent openings:', recentError);
+                    // Don't fail the whole operation for this
+                }
 
-                // Still provide fallback data if we don't have any
-                if (!inventory) {
+                return data;
+
+            } catch (error) {
+                console.error('❌ Failed to load inventory from API:', error);
+
+                // Check if it's the HTML error (API endpoint issue)
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                const isHTMLError = errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token');
+
+                if (isHTMLError) {
+                    setError('⚠️ Backend API not available. Using mock data for testing. Please check your server setup.');
+                    console.log('🔧 Using mock data due to API issues');
+
+                    // Use mock data for testing UI
+                    const mockData: { orbs: Orb[]; summary: UserInventory } = {
+                        orbs: [],
+                        summary: getMockInventory()
+                    };
+
+                    setOrbs(mockData.orbs);
+                    setInventory(mockData.summary);
+                    dataLoadedRef.current = true;
+                    lastLoadTimeRef.current = now;
+
+                    return mockData;
+                } else {
+                    // Other errors (auth, network, etc.)
+                    setError(`Failed to load inventory: ${errorMessage}`);
+
+                    // Still provide fallback data
                     setOrbs([]);
                     setInventory(getMockInventory());
+                    dataLoadedRef.current = true;
+                    lastLoadTimeRef.current = now;
+
+                    throw error;
                 }
-
-                throw error;
+            } finally {
+                if (showLoading) setLoading(false);
+                loadingPromiseRef.current = null;
             }
-        } finally {
-            if (showLoading) setLoading(false);
-        }
-    };
+        })();
 
-    // Public method that uses debouncing
-    const loadInventory = useCallback((showLoading: boolean = true) => {
-        return debouncedLoadInventory(showLoading, false);
-    }, [debouncedLoadInventory]);
-
-    // Force reload method (bypasses debouncing and rate limiting)
-    const forceLoadInventory = useCallback((showLoading: boolean = true) => {
-        return debouncedLoadInventory(showLoading, true);
-    }, [debouncedLoadInventory]);
+        loadingPromiseRef.current = loadingPromise;
+        return loadingPromise;
+    }, [inventory, orbs]);
 
     // Complete game and award rewards with fallback
     const completeGame = async (gameData: GameCompletionData): Promise<GameCompletionResult> => {
@@ -236,11 +192,12 @@ const useRealmLogic = () => {
             // Update local state with new totals
             if (response.newTotals) {
                 setInventory(response.newTotals);
+                lastLoadTimeRef.current = Date.now(); // Update cache timestamp
             }
 
             // Refresh orbs list to show new orbs (with proper error handling)
             try {
-                await loadInventory(false);
+                await loadInventory(false, true); // Force refresh
             } catch (loadError) {
                 console.warn('Failed to refresh orbs after game completion:', loadError);
                 // Don't fail the whole operation if refresh fails
@@ -253,27 +210,23 @@ const useRealmLogic = () => {
 
         } catch (error) {
             console.error('❌ Failed to complete game:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to complete game';
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-            // If API is down, simulate rewards locally
+            // If API is down, simulate game completion
             if (errorMessage.includes('<!DOCTYPE') || errorMessage.includes('Unexpected token')) {
-                console.log('🔧 Simulating game completion rewards locally');
+                console.log('🔧 Simulating game completion locally');
 
                 const mockRewards = {
                     gold: gameData.goldCollected,
-                    orbs: [
-                        { rarity: 'common' as OrbRarity },
-                        { rarity: (Math.random() > 0.7 ? 'uncommon' : 'common') as OrbRarity }
-                    ] as GameReward[]
+                    orbs: Array.from({ length: gameData.orbsToAward || 2 }, () => ({ rarity: 'common' as OrbRarity }))
                 };
 
-                // Update local inventory
+                // Update inventory
                 if (inventory) {
-                    const newInventory = {
+                    setInventory({
                         ...inventory,
                         gold: inventory.gold + mockRewards.gold
-                    };
-                    setInventory(newInventory);
+                    });
                 }
 
                 const result: GameCompletionResult = {
@@ -283,8 +236,7 @@ const useRealmLogic = () => {
                 };
 
                 setLastGameRewards(result);
-                setError('⚠️ Rewards simulated locally - backend not available');
-
+                setError('⚠️ Game completed locally - backend not available');
                 return result;
             }
 
@@ -294,9 +246,8 @@ const useRealmLogic = () => {
             };
 
             setLastGameRewards(result);
-            setError(errorMessage);
-
             return result;
+
         } finally {
             setCompletingGame(false);
         }
@@ -304,10 +255,14 @@ const useRealmLogic = () => {
 
     // Open a single orb with fallback
     const openOrb = async (orbId: string, rarity: string): Promise<boolean> => {
-        if (openingOrbs.has(orbId)) return false;
+        if (openingOrbs.has(orbId)) {
+            console.log('Orb already being opened:', orbId);
+            return false;
+        }
+
+        setOpeningOrbs(prev => new Set(prev).add(orbId));
 
         try {
-            setOpeningOrbs(prev => new Set(prev).add(orbId));
             setError(null);
 
             // Validate rarity type
@@ -319,9 +274,20 @@ const useRealmLogic = () => {
 
             // Update inventory
             setInventory(response.newTotals);
+            lastLoadTimeRef.current = Date.now(); // Update cache timestamp
 
-            // Remove opened orb from list
+            // Remove orb from list
             setOrbs(prev => prev.filter(orb => orb.id !== orbId));
+
+            // Add to recent openings
+            const newOpening: RecentOpening = {
+                id: response.orb.id,
+                rarity: response.orb.rarity,
+                contents: response.orb.contents,
+                timestamp: Date.now()
+            };
+
+            setRecentOpenings(prev => [newOpening, ...prev.slice(0, 4)]);
 
             return true;
 
@@ -350,6 +316,7 @@ const useRealmLogic = () => {
                         ...inventory,
                         gold: inventory.gold + contents.gold
                     });
+                    lastLoadTimeRef.current = Date.now(); // Update cache timestamp
                 }
 
                 // Remove orb from list
@@ -384,6 +351,7 @@ const useRealmLogic = () => {
 
             // Update inventory
             setInventory(response.newTotals);
+            lastLoadTimeRef.current = Date.now(); // Update cache timestamp
 
             // Remove opened orbs from list
             setOrbs(prev => {
@@ -420,7 +388,7 @@ const useRealmLogic = () => {
             setRecentOpenings(transformedOpenings);
         } catch (error) {
             console.error('Failed to load recent openings:', error);
-            // Don't set error for this non-critical operation
+            // Don't set error state for this non-critical operation
         }
     };
 
@@ -449,11 +417,16 @@ const useRealmLogic = () => {
         setError(null);
     };
 
+    // Force refresh inventory (ignores cache)
+    const refreshInventory = useCallback(async () => {
+        return loadInventory(true, true);
+    }, [loadInventory]);
+
     // Auto-load inventory on mount with proper error handling
     useEffect(() => {
         const initializeRealm = async () => {
             try {
-                await forceLoadInventory(); // Use force load on mount
+                await loadInventory();
             } catch (error) {
                 console.error('Failed to initialize realm:', error);
                 // Error is already handled in loadInventory, just log here
@@ -461,16 +434,7 @@ const useRealmLogic = () => {
         };
 
         initializeRealm();
-    }, [forceLoadInventory]);
-
-    // Cleanup timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (loadTimeoutRef.current) {
-                clearTimeout(loadTimeoutRef.current);
-            }
-        };
-    }, []);
+    }, [loadInventory]);
 
     return {
         // State
@@ -489,7 +453,7 @@ const useRealmLogic = () => {
 
         // Data loading
         loadInventory,
-        forceLoadInventory, // Expose force load method
+        refreshInventory,
 
         // Game completion
         completeGame,
@@ -510,7 +474,7 @@ const useRealmLogic = () => {
         isLoading: loading || completingGame,
         hasOrbs: orbs.length > 0,
         hasError: !!error,
-        isRateLimited: isRateLimited(), // Expose rate limit status
+        isDataLoaded: dataLoadedRef.current,
     };
 };
 

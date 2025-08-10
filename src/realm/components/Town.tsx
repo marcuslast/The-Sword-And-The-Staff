@@ -942,13 +942,17 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
                 {showTrainingCenter && (
                     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
                         <div className="bg-black rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-y-auto relative">
+                            {/* Keep the X if you like, or rely solely on the Back button inside */}
                             <button
                                 onClick={() => setShowTrainingCenter(false)}
                                 className="absolute top-4 right-4 text-white text-3xl hover:text-red-400"
+                                aria-label="Close training center"
                             >
                                 ×
                             </button>
-                            <TrainingCenter />
+
+                            {/* Pass the back handler down */}
+                            <TrainingCenter onBack={() => setShowTrainingCenter(false)} />
                         </div>
                     </div>
                 )}

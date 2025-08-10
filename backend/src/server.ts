@@ -1,3 +1,4 @@
+// backend/src/server.ts
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -8,7 +9,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import gameRoutes from './routes/games';
 import orbRoutes from './routes/orbs';
-import townRoutes from './routes/town'; // Add this import
+import townRoutes from './routes/town';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -23,13 +24,35 @@ app.use(cors({
     credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.'
+// More lenient rate limiting for game operations
+const gameApiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute window
+    max: 60, // 60 requests per minute for game operations
+    message: 'Too many game requests, please slow down.',
+    standardHeaders: true,
+    legacyHeaders: false,
 });
-app.use(limiter);
+
+// Strict rate limiting only for sensitive operations
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 auth attempts per 15 minutes
+    message: 'Too many authentication attempts, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Very lenient rate limiting for general API usage
+const generalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 120, // 120 requests per minute
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -38,14 +61,14 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 connectDB();
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/games', gameRoutes);
-app.use('/api/orbs', orbRoutes);
-app.use('/api/town', townRoutes); // Add this line
+// Routes with specific rate limiting
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/users', gameApiLimiter, userRoutes);
+app.use('/api/games', gameApiLimiter, gameRoutes);
+app.use('/api/orbs', gameApiLimiter, orbRoutes);
+app.use('/api/town', gameApiLimiter, townRoutes);
 
-// Health check
+// Health check (no rate limiting)
 app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
