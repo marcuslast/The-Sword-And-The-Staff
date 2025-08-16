@@ -50,11 +50,62 @@
     z-index: 1;
 }
 
-.army-background {
-    background-color: rgba(0, 0, 0, 1);
+/* Army view full-screen background */
+.army-view {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow-y: auto;
+
     background-image: url('../src/assets/images/backgrounds/horse-background.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
+}
+
+/* Dark overlay for army view */
+.army-view::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+/* Ensure army content sits above overlay */
+.army-view > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Training queue view full-screen background */
+.training-queue-view {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow-y: auto;
+
+    background-image: url('../src/assets/images/backgrounds/horse-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* Dark overlay for training queue view */
+.training-queue-view::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+/* Ensure training queue content sits above overlay */
+.training-queue-view > * {
+    position: relative;
+    z-index: 1;
 }

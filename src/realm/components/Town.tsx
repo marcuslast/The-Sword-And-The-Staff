@@ -700,8 +700,15 @@ export const Town: React.FC<TownProps> = ({ onBack = () => {} }) => {
         return cubeDistance(a, centerAxial) <= radius;
     };
 
+    // Determine background styling based on active view
+    const getContainerClass = () => {
+        if (activeView === 'army') return 'army-view';
+        if (activeView === 'training') return 'training-queue-view';
+        return 'min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900';
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-blue-900">
+        <div className={getContainerClass()}>
             {/* Header */}
             <div className="bg-black/30 backdrop-blur-lg border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 py-3">
