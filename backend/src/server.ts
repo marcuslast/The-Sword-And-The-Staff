@@ -11,6 +11,7 @@ import gameRoutes from './routes/games';
 import orbRoutes from './routes/orbs';
 import townRoutes from './routes/town';
 import { errorHandler } from './middleware/errorHandler';
+import worldMapRoutes from './routes/worldmap';
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ app.use('/api/users', gameApiLimiter, userRoutes);
 app.use('/api/games', gameApiLimiter, gameRoutes);
 app.use('/api/orbs', gameApiLimiter, orbRoutes);
 app.use('/api/town', gameApiLimiter, townRoutes);
+app.use('/api/worldmap', worldMapRoutes);
 
 // Health check (no rate limiting)
 app.get('/api/health', (req, res) => {

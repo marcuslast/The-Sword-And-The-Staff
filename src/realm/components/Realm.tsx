@@ -4,6 +4,7 @@ import { AuthButton } from '../../components/Auth/AuthButton';
 import useRealmLogic from '../hooks/useRealmLogic';
 import { OrbRarity } from '../services/orbApi';
 import Town from './Town';
+import WorldMapWrapper from './WorldMapWrapper';
 
 const RARITY_COLORS: Record<OrbRarity, string> = {
     'common': 'from-gray-400 to-gray-600',
@@ -30,6 +31,7 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
     const realmLogic = useRealmLogic();
     // Use simple boolean state instead of string literals
     const [showTown, setShowTown] = useState(false);
+    const [showWorldMap, setShowWorldMap] = useState(false);
 
     // Load inventory on component mount with proper error handling
     useEffect(() => {
@@ -84,6 +86,12 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
         return <Town onBack={() => setShowTown(false)} />;
     }
 
+    // 2) Early return for World Map
+    if (showWorldMap) {
+        return <WorldMapWrapper onBack={() => setShowWorldMap(false)} />;
+    }
+
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
             {/* Authentication Button in top right */}
@@ -112,9 +120,12 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                     <div className="flex justify-center mt-6 mb-4">
                         <div className="bg-white/10 backdrop-blur rounded-lg p-1 flex">
                             <button
-                                onClick={() => setShowTown(false)}
+                                onClick={() => {
+                                    setShowTown(false);
+                                    setShowWorldMap(false);
+                                }}
                                 className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                                    !showTown
+                                    !showTown && !showWorldMap
                                         ? 'bg-purple-600 text-white shadow-lg'
                                         : 'text-white/80 hover:text-white hover:bg-white/10'
                                 }`}
@@ -122,7 +133,10 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                                 🔮 Crystal Orbs
                             </button>
                             <button
-                                onClick={() => setShowTown(true)}
+                                onClick={() => {
+                                    setShowTown(true);
+                                    setShowWorldMap(false);
+                                }}
                                 className={`px-6 py-2 rounded-lg font-semibold transition-all ${
                                     showTown
                                         ? 'bg-green-600 text-white shadow-lg'
@@ -131,8 +145,22 @@ const Realm: React.FC<RealmProps> = ({ onBack }) => {
                             >
                                 🏘️ Your Town
                             </button>
+                            <button
+                                onClick={() => {
+                                    setShowWorldMap(true);
+                                    setShowTown(false);
+                                }}
+                                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                                    showWorldMap
+                                        ? 'bg-blue-600 text-white shadow-lg'
+                                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                🗺️ World Map
+                            </button>
                         </div>
                     </div>
+
 
                     {user && (
                         <div className="mt-4 p-4 bg-white/20 backdrop-blur rounded-lg inline-block">

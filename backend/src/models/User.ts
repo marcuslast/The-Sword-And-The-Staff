@@ -38,6 +38,11 @@ export interface Army {
     swordsmen: Record<string, number>;
 }
 
+export enum UserRole {
+    USER = 'user',
+    ADMIN = 'admin'
+}
+
 export interface IUser extends Document {
     _id: mongoose.Types.ObjectId;
     username: string;
@@ -45,6 +50,7 @@ export interface IUser extends Document {
     password: string;
     displayName: string;
     avatar?: string;
+    role: UserRole;
     isOnline: boolean;
     lastSeen: Date;
     gameStats: {

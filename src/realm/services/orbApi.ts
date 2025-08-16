@@ -1,5 +1,3 @@
-// realm/services/orbApi.ts
-
 export type OrbRarity = 'common' | 'uncommon' | 'rare' | 'very rare' | 'legendary';
 
 export interface OrbItem {
